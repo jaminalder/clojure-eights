@@ -18,9 +18,12 @@ This repository starts with the game domain only. The goal is to model Crazy Eig
 The current implementation only establishes:
 
 - project shell
+- executable tests
+
+Planned next steps in this direction are:
+
 - domain namespace structure
 - domain resources
-- executable tests
 
 ## Constraints
 

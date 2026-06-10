@@ -2,6 +2,7 @@
   (:require [clojure.java.io :as io]
             [clojure.test :refer [deftest is testing]]))
 
+;; Kept for later task coverage once classpath resources exist.
 (defn resource-exists? [path]
   (boolean (io/resource path)))
 
