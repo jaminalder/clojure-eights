@@ -1,0 +1,16 @@
+{:lint-as {clojure.test.check.clojure-test/defspec clojure.test/deftest}
+ :linters
+ {:non-idiomatic-name {:level :off}
+  :underscore-in-namespace {:level :off}
+  :unused-alias {:level :warning}
+  :unused-binding {:level :warning}
+  :shadowed-var {:level :warning}
+  :redundant-do {:level :warning}
+  :redundant-let {:level :warning}
+  :redundant-call {:level :warning}
+  :redundant-fn-wrapper {:level :warning}
+  :if-nil-return {:level :warning}
+  :not-nil? {:level :warning}
+  :unsorted-required-namespaces {:level :warning}
+  :aliased-namespace-symbol {:level :warning}
+  :single-key-in {:level :warning}}}
