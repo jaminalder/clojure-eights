@@ -1,0 +1,20 @@
+{:name "play matching rank"
+ :given {:state {:players [{:hand [{:rank :queen :suit :clubs}]}
+                           {:hand [{:rank :ace :suit :spades}]}]
+                 :draw-pile [{:rank :two :suit :diamonds}]
+                 :discard-pile [{:rank :queen :suit :hearts}]
+                 :active-suit :hearts
+                 :current-player 0
+                 :status :in-progress
+                 :winner nil}}
+ :when {:command {:type :play-card
+                  :player 0
+                  :card {:rank :queen :suit :clubs}}}
+ :then {:events [{:type :card-played
+                  :player 0
+                  :card {:rank :queen :suit :clubs}}
+                 {:type :game-won
+                  :player 0}]
+        :state-matches {:status :finished
+                        :winner 0
+                        :active-suit :clubs}}}

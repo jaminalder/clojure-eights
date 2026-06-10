@@ -1,0 +1,24 @@
+{:name "play eight declares suit"
+ :given {:state {:players [{:hand [{:rank :eight :suit :clubs}
+                                    {:rank :queen :suit :clubs}]}
+                           {:hand [{:rank :ace :suit :spades}]}]
+                 :draw-pile [{:rank :two :suit :diamonds}]
+                 :discard-pile [{:rank :king :suit :hearts}]
+                 :active-suit :hearts
+                 :current-player 0
+                 :status :in-progress
+                 :winner nil}}
+ :when {:command {:type :play-card
+                  :player 0
+                  :card {:rank :eight :suit :clubs}
+                  :declared-suit :spades}}
+ :then {:events [{:type :card-played
+                  :player 0
+                  :card {:rank :eight :suit :clubs}}
+                 {:type :suit-declared
+                  :suit :spades}
+                 {:type :turn-advanced
+                  :player 1}]
+        :state-matches {:active-suit :spades
+                        :current-player 1
+                        :status :in-progress}}}

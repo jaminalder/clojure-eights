@@ -1,0 +1,13 @@
+{:name "cannot play invalid card"
+ :given {:state {:players [{:hand [{:rank :ace :suit :clubs}]}
+                           {:hand [{:rank :king :suit :spades}]}]
+                 :draw-pile [{:rank :two :suit :diamonds}]
+                 :discard-pile [{:rank :queen :suit :hearts}]
+                 :active-suit :hearts
+                 :current-player 0
+                 :status :in-progress
+                 :winner nil}}
+ :when {:command {:type :play-card
+                  :player 0
+                  :card {:rank :ace :suit :clubs}}}
+ :then {:error {:reason :card-not-playable}}}
