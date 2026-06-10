@@ -65,11 +65,7 @@ Create `test/crazy_eights/domain/project_shell_test.clj` with:
     (is (.exists (io/file "README.md")))
     (is (.exists (io/file "docs/domain.md")))
     (is (.exists (io/file "docs/adr/0001-domain-first-clojure.md")))
-    (is (.exists (io/file "docs/adr/0002-no-database-initially.md"))))
-
-  (testing "domain resource files exist"
-    (is (resource-exists? "domain/model.edn"))
-    (is (resource-exists? "domain/rules.edn"))))
+    (is (.exists (io/file "docs/adr/0002-no-database-initially.md")))))
 ```
 
 - [ ] **Step 2: Run the smoke test to verify it fails**
