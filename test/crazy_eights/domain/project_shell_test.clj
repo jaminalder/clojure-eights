@@ -4,11 +4,14 @@
 
 ;; Kept for later task coverage once classpath resources exist.
 (defn resource-exists? [path]
-  (boolean (io/resource path)))
+  (boolean (or (io/resource path)
+               (.exists (io/file path)))))
 
 (deftest project-shell-files-exist
   (testing "documentation files exist"
-    (is (.exists (io/file "README.md")))
-    (is (.exists (io/file "docs/domain.md")))
-    (is (.exists (io/file "docs/adr/0001-domain-first-clojure.md")))
-    (is (.exists (io/file "docs/adr/0002-no-database-initially.md")))))
+    (is (resource-exists? "README.md"))
+    (is (resource-exists? "deps.edn"))
+    (is (resource-exists? "tests.edn"))
+    (is (resource-exists? "docs/domain.md"))
+    (is (resource-exists? "docs/adr/0001-domain-first-clojure.md"))
+    (is (resource-exists? "docs/adr/0002-no-database-initially.md"))))
