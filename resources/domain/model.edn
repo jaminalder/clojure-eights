@@ -1,0 +1,10 @@
+{:card {:shape {:rank :keyword
+                :suit :keyword}}
+ :player {:shape {:hand [:vector :card]}}
+ :game-state {:shape {:players [:vector :player]
+                      :draw-pile [:vector :card]
+                      :discard-pile [:vector :card]
+                      :active-suit :keyword
+                      :current-player :int
+                      :status :keyword
+                      :winner [:maybe :int]}}}
