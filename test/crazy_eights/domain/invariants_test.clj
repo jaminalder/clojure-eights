@@ -1,5 +1,7 @@
 (ns crazy_eights.domain.invariants-test
   (:require [clojure.test :refer [deftest is]]
+            [crazy_eights.domain.commands :as commands]
+            [crazy_eights.domain.events :as events]
             [crazy_eights.domain.invariants :as invariants]
             [crazy_eights.domain.model :as model]))
 
@@ -25,3 +27,20 @@
                :winner 0}]
     (is (= [{:reason :winner-hand-not-empty}]
            (invariants/check state)))))
+
+(deftest played-card-state-preserves-invariants
+  (let [state {:players [(model/player [(model/card :queen :clubs)
+                                        (model/card :ace :clubs)])
+                        (model/player [(model/card :king :spades)])]
+               :draw-pile [(model/card :two :diamonds)]
+               :discard-pile [(model/card :queen :hearts)]
+               :active-suit :hearts
+               :current-player 0
+               :status :in-progress
+               :winner nil}
+        events (commands/decide state {:type :play-card
+                                       :player 0
+                                       :card (model/card :queen :clubs)})
+        next-state (events/apply-events state events)]
+    (is (vector? events))
+    (is (empty? (invariants/check next-state)))))
