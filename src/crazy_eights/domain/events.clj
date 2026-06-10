@@ -16,6 +16,11 @@
 (defmethod apply-event :suit-declared [state {:keys [suit]}]
   (assoc state :active-suit suit))
 
+(defmethod apply-event :card-drawn [state {:keys [player card]}]
+  (-> state
+      (update :draw-pile #(vec (rest %)))
+      (update-in [:players player :hand] conj card)))
+
 (defmethod apply-event :turn-advanced [state {:keys [player]}]
   (assoc state :current-player player))
 

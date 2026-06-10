@@ -66,3 +66,64 @@
            (commands/decide state {:type :play-card
                                    :player 0
                                    :card (model/card :eight :clubs)})))))
+
+(deftest draw-card-emits-draw-and-turn-events
+  (let [state {:players [(model/player [(model/card :ace :clubs)])
+                        (model/player [(model/card :king :spades)])]
+               :draw-pile [(model/card :two :diamonds)
+                           (model/card :three :diamonds)]
+               :discard-pile [(model/card :queen :hearts)]
+               :active-suit :hearts
+               :current-player 0
+               :status :in-progress
+               :winner nil}
+        events (commands/decide state {:type :draw-card
+                                       :player 0})]
+    (is (= [{:type :card-drawn
+             :player 0
+             :card (model/card :two :diamonds)}
+            {:type :turn-advanced
+             :player 1}]
+           events))))
+
+(deftest must-play-before-drawing
+  (let [state {:players [(model/player [(model/card :queen :clubs)])
+                        (model/player [(model/card :ace :spades)])]
+               :draw-pile [(model/card :two :diamonds)]
+               :discard-pile [(model/card :queen :hearts)]
+               :active-suit :hearts
+               :current-player 0
+               :status :in-progress
+               :winner nil}]
+    (is (= {:type :domain-error
+            :reason :must-play-before-drawing}
+           (commands/decide state {:type :draw-card
+                                   :player 0})))))
+
+(deftest draw-card-fails-when-pile-empty
+  (let [state {:players [(model/player [(model/card :ace :clubs)])
+                        (model/player [(model/card :king :spades)])]
+               :draw-pile []
+               :discard-pile [(model/card :queen :hearts)]
+               :active-suit :hearts
+               :current-player 0
+               :status :in-progress
+               :winner nil}]
+    (is (= {:type :domain-error
+            :reason :draw-pile-empty}
+           (commands/decide state {:type :draw-card
+                                   :player 0})))))
+
+(deftest draw-card-fails-for-non-current-player
+  (let [state {:players [(model/player [(model/card :ace :clubs)])
+                        (model/player [(model/card :king :spades)])]
+               :draw-pile [(model/card :two :diamonds)]
+               :discard-pile [(model/card :queen :hearts)]
+               :active-suit :hearts
+               :current-player 0
+               :status :in-progress
+               :winner nil}]
+    (is (= {:type :domain-error
+            :reason :not-current-player}
+           (commands/decide state {:type :draw-card
+                                   :player 1})))))

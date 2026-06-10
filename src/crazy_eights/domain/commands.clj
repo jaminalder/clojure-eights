@@ -32,13 +32,39 @@
   (mod (inc (:current-player state))
        (count (:players state))))
 
-(defn- play-card-events [state {:keys [player card declared-suit]}]
-  (let [current-hand (get-in state [:players player :hand])]
+(defn- current-hand [state player]
+  (get-in state [:players player :hand]))
+
+(defn- any-playable-card? [state hand]
+  (some #(model/playable-card? state %) hand))
+
+(defn- draw-card-events [state {:keys [player]}]
+  (let [hand (current-hand state player)
+        drawn-card (first (:draw-pile state))]
     (cond
       (not= player (:current-player state))
       (domain-error :not-current-player)
 
-      (not (model/card-in-hand? current-hand card))
+      (any-playable-card? state hand)
+      (domain-error :must-play-before-drawing)
+
+      (nil? drawn-card)
+      (domain-error :draw-pile-empty)
+
+      :else
+      [{:type :card-drawn
+        :player player
+        :card drawn-card}
+       {:type :turn-advanced
+        :player (next-player state)}])))
+
+(defn- play-card-events [state {:keys [player card declared-suit]}]
+  (let [hand (current-hand state player)]
+    (cond
+      (not= player (:current-player state))
+      (domain-error :not-current-player)
+
+      (not (model/card-in-hand? hand card))
       (domain-error :card-not-in-hand)
 
       (not (model/playable-card? state card))
@@ -56,11 +82,11 @@
         (conj {:type :suit-declared
                :suit declared-suit})
 
-        (empty? (remove #(= % card) current-hand))
+        (empty? (remove #(= % card) hand))
         (conj {:type :game-won
                :player player})
 
-        (seq (remove #(= % card) current-hand))
+        (seq (remove #(= % card) hand))
         (conj {:type :turn-advanced
                :player (next-player state)})))))
 
@@ -74,4 +100,5 @@
                   (start-game-events command)
                   (domain-error :invalid-start-game))
     :play-card (play-card-events state command)
+    :draw-card (draw-card-events state command)
     (domain-error :unknown-command)))
