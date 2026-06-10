@@ -1,6 +1,5 @@
 (ns crazy_eights.domain.commands
-  (:require [crazy_eights.domain.model :as model]
-            [crazy_eights.domain.rules :as rules]))
+  (:require [crazy_eights.domain.model :as model]))
 
 (def cards-per-player 5)
 
@@ -39,21 +38,21 @@
       (not= player (:current-player state))
       (domain-error :not-current-player)
 
-      (not (rules/card-in-hand? current-hand card))
+      (not (model/card-in-hand? current-hand card))
       (domain-error :card-not-in-hand)
 
-      (not (rules/playable-card? state card))
+      (not (model/playable-card? state card))
       (domain-error :card-not-playable)
 
-      (and (rules/requires-declared-suit? card)
-           (not (rules/valid-declared-suit? card declared-suit)))
+      (and (model/requires-declared-suit? card)
+           (not (model/valid-declared-suit? card declared-suit)))
       (domain-error :declared-suit-required)
 
       :else
       (cond-> [{:type :card-played
                 :player player
                 :card card}]
-        (rules/requires-declared-suit? card)
+        (model/requires-declared-suit? card)
         (conj {:type :suit-declared
                :suit declared-suit})
 
@@ -69,7 +68,7 @@
   (case (:type command)
     :start-game (if (and (nil? state)
                          (pos-int? (:player-count command))
-                         (every? rules/card? (:deck command))
+                         (every? model/card? (:deck command))
                          (< (* (:player-count command) cards-per-player)
                             (count (:deck command))))
                   (start-game-events command)

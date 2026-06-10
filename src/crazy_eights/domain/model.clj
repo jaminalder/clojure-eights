@@ -21,3 +21,20 @@
   (and (map? value)
        (valid-rank? (:rank value))
        (valid-suit? (:suit value))))
+
+(defn card-in-hand? [hand card]
+  (boolean (some #(= card %) hand)))
+
+(defn requires-declared-suit? [card]
+  (= :eight (:rank card)))
+
+(defn valid-declared-suit? [card declared-suit]
+  (if (requires-declared-suit? card)
+    (valid-suit? declared-suit)
+    (nil? declared-suit)))
+
+(defn playable-card? [{:keys [active-suit discard-pile]} card]
+  (let [top-card (peek discard-pile)]
+    (or (= :eight (:rank card))
+        (= active-suit (:suit card))
+        (= (:rank top-card) (:rank card)))))

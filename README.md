@@ -1,29 +1,29 @@
 # crazy-eights
 
-Pure Clojure domain-first Crazy Eights web application project.
+Pure Clojure Crazy Eights domain model.
 
 ## Purpose
 
-This repository starts with the game domain only. The goal is to model Crazy Eights as immutable data and pure functions before adding any web or runtime concerns.
-
-## Architecture Intent
-
-- pure domain core first
-- command -> events -> state transition flow
-- documentation and executable scenarios drive intended behavior
-- future layers will compose around the domain instead of leaking into it
+This repository starts with the game domain only. The goal is to model Crazy Eights as immutable data and pure functions before adding application or web concerns.
 
 ## Current Scope
 
-The current implementation only establishes:
+The current implementation includes:
 
-- project shell
-- executable tests
+- domain data and constructors
+- command decisions for `:start-game` and `:play-card`
+- event application
+- invariant checks
+- executable EDN scenarios
+- property and unit tests
 
-Planned next steps in this direction are:
+## How To Read The Project
 
-- domain namespace structure
-- domain resources
+The code is the primary specification.
+
+- domain behavior lives in `src/crazy_eights/domain/`
+- tests under `test/crazy_eights/domain/` are the executable spec
+- scenario EDN under `resources/domain/scenarios/` is kept only because it is executed by tests
 
 ## Constraints
 
@@ -36,15 +36,20 @@ Planned next steps in this direction are:
 
 Temporary in-memory application state may exist later outside the domain layer.
 
-## Future Direction
-
-Later iterations may add:
-
-- Ring / Reitit style HTTP architecture
-- Hiccup / HTMX style server-rendered UI
-- SSE or WebSocket support
-- Dockerized deployment
-
 ## Domain Purity
 
 Domain namespaces must not depend on HTTP, persistence, logging, config, filesystem, time, randomness, or mutable runtime primitives.
+
+## Tests
+
+Run all tests:
+
+```bash
+clojure -M:test
+```
+
+Run one namespace:
+
+```bash
+clojure -M:test --focus crazy_eights.domain.commands-test
+```

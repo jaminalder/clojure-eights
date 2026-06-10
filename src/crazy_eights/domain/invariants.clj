@@ -1,8 +1,8 @@
 (ns crazy_eights.domain.invariants
-  (:require [crazy_eights.domain.rules :as rules]))
+  (:require [crazy_eights.domain.model :as model]))
 
 (defn- valid-card-collection? [cards]
-  (every? rules/card? cards))
+  (every? model/card? cards))
 
 (defn- winner-empty-hand? [{:keys [players winner]}]
   (or (nil? winner)
@@ -26,7 +26,7 @@
     (conj {:reason :invalid-discard-pile-card})
 
     (and (= :in-progress status)
-         (not (rules/valid-suit? active-suit)))
+         (not (model/valid-suit? active-suit)))
     (conj {:reason :invalid-active-suit})
 
     (and (= :in-progress status)

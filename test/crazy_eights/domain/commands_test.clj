@@ -2,8 +2,7 @@
   (:require [clojure.test :refer [deftest is testing]]
             [crazy_eights.domain.commands :as commands]
             [crazy_eights.domain.events :as events]
-            [crazy_eights.domain.model :as model]
-            [crazy_eights.domain.schema :as schema]))
+            [crazy_eights.domain.model :as model]))
 
 (def ordered-deck
   [(model/card :ace :clubs)
@@ -67,12 +66,3 @@
            (commands/decide state {:type :play-card
                                    :player 0
                                    :card (model/card :eight :clubs)})))))
-
-(deftest command-and-event-shapes-match-schema
-  (let [start-events (commands/decide nil {:type :start-game
-                                           :player-count 2
-                                           :deck ordered-deck})]
-    (is (schema/valid? schema/command-schema {:type :start-game
-                                              :player-count 2
-                                              :deck ordered-deck}))
-    (is (every? #(schema/valid? schema/event-schema %) start-events))))
