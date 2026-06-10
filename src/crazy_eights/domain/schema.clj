@@ -34,7 +34,7 @@
 
 (def event-schema
   [:multi {:dispatch :type}
-   [:game-started [:map [:type [:= :game-started]] [:players [:vector player-schema]] [:draw-pile [:vector card-schema]] [:discard-pile [:vector card-schema]] [:active-suit suit-schema] [:current-player :int] [:status [:= :in-progress]] [:winner [:= nil]]]]
+   [:game-started [:map [:type [:= :game-started]] [:players [:vector player-schema]] [:draw-pile [:vector card-schema]] [:discard-pile [:vector card-schema]] [:active-suit suit-schema] [:current-player :int] [:status [:= :in-progress]] [:winner nil?]]]
    [:card-played [:map [:type [:= :card-played]] [:player :int] [:card card-schema]]]
    [:suit-declared [:map [:type [:= :suit-declared]] [:suit suit-schema]]]
    [:turn-advanced [:map [:type [:= :turn-advanced]] [:player :int]]]
