@@ -22,19 +22,19 @@
        (valid-rank? (:rank value))
        (valid-suit? (:suit value))))
 
-(defn card-in-hand? [hand card]
-  (boolean (some #(= card %) hand)))
+(defn card-in-hand? [hand candidate-card]
+  (boolean (some #(= candidate-card %) hand)))
 
-(defn requires-declared-suit? [card]
-  (= :eight (:rank card)))
+(defn requires-declared-suit? [candidate-card]
+  (= :eight (:rank candidate-card)))
 
-(defn valid-declared-suit? [card declared-suit]
-  (if (requires-declared-suit? card)
+(defn valid-declared-suit? [candidate-card declared-suit]
+  (if (requires-declared-suit? candidate-card)
     (valid-suit? declared-suit)
     (nil? declared-suit)))
 
-(defn playable-card? [{:keys [active-suit discard-pile]} card]
+(defn playable-card? [{:keys [active-suit discard-pile]} candidate-card]
   (let [top-card (peek discard-pile)]
-    (or (= :eight (:rank card))
-        (= active-suit (:suit card))
-        (= (:rank top-card) (:rank card)))))
+    (or (= :eight (:rank candidate-card))
+        (= active-suit (:suit candidate-card))
+        (= (:rank top-card) (:rank candidate-card)))))

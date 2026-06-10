@@ -60,7 +60,7 @@
         (conj {:type :game-won
                :player player})
 
-        (not (empty? (remove #(= % card) current-hand)))
+        (seq (remove #(= % card) current-hand))
         (conj {:type :turn-advanced
                :player (next-player state)})))))
 

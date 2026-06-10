@@ -48,6 +48,12 @@ Run all tests:
 clojure -M:test
 ```
 
+Run lint:
+
+```bash
+clojure -M:lint
+```
+
 Run one namespace:
 
 ```bash
