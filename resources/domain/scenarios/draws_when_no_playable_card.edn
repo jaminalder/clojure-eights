@@ -1,0 +1,22 @@
+{:name "draws when no playable card"
+ :given {:state {:players [{:hand [{:rank :ace :suit :clubs}]}
+                           {:hand [{:rank :king :suit :spades}]}]
+                 :draw-pile [{:rank :two :suit :diamonds}
+                             {:rank :three :suit :diamonds}]
+                 :discard-pile [{:rank :queen :suit :hearts}]
+                 :active-suit :hearts
+                 :current-player 0
+                 :status :in-progress
+                 :winner nil}}
+ :when {:command {:type :draw-card
+                  :player 0}}
+ :then {:events [{:type :card-drawn
+                  :player 0
+                  :card {:rank :two :suit :diamonds}}
+                 {:type :turn-advanced
+                  :player 1}]
+        :state-matches {:draw-pile [{:rank :three :suit :diamonds}]
+                        :players [{:hand [{:rank :ace :suit :clubs}
+                                          {:rank :two :suit :diamonds}]}
+                                  {:hand [{:rank :king :suit :spades}]}]
+                        :current-player 1}}}

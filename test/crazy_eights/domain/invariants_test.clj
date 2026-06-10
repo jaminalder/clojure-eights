@@ -42,5 +42,21 @@
                                        :player 0
                                        :card (model/card :queen :clubs)})
         next-state (events/apply-events state events)]
-    (is (vector? events))
+    (is (= :card-played (:type (first events))))
+    (is (empty? (invariants/check next-state)))))
+
+(deftest drawn-card-state-preserves-invariants
+  (let [state {:players [(model/player [(model/card :ace :clubs)])
+                        (model/player [(model/card :king :spades)])]
+               :draw-pile [(model/card :two :diamonds)
+                           (model/card :three :diamonds)]
+               :discard-pile [(model/card :queen :hearts)]
+               :active-suit :hearts
+               :current-player 0
+               :status :in-progress
+               :winner nil}
+        events (commands/decide state {:type :draw-card
+                                       :player 0})
+        next-state (events/apply-events state events)]
+    (is (= :card-drawn (:type (first events))))
     (is (empty? (invariants/check next-state)))))
