@@ -1,4 +1,4 @@
-(ns crazy_eights.domain.scenario-test
+(ns crazy_eights.domain.scenarios-test
   (:require [clojure.test :refer [deftest is testing]]
             [crazy_eights.domain.scenarios :as scenarios]))
 
