@@ -67,7 +67,7 @@
                                    :player 0
                                    :card (model/card :eight :clubs)})))))
 
-(deftest draw-card-emits-draw-and-turn-events
+(deftest draw-card-emits-draw-event
   (let [state {:players [(model/player [(model/card :ace :clubs)])
                         (model/player [(model/card :king :spades)])]
                :draw-pile [(model/card :two :diamonds)
@@ -81,9 +81,7 @@
                                        :player 0})]
     (is (= [{:type :card-drawn
              :player 0
-             :card (model/card :two :diamonds)}
-            {:type :turn-advanced
-             :player 1}]
+             :card (model/card :two :diamonds)}]
            events))))
 
 (deftest must-play-before-drawing
@@ -127,3 +125,83 @@
             :reason :not-current-player}
            (commands/decide state {:type :draw-card
                                    :player 1})))))
+
+(deftest start-game-initializes-pass-counter
+  (let [events (commands/decide nil {:type :start-game
+                                     :player-count 2
+                                     :deck ordered-deck})
+        state (events/apply-events nil events)]
+    (is (= 0 (:passes-in-row state)))))
+
+(deftest draw-card-keeps-same-player-turn
+  (let [state {:players [(model/player [(model/card :ace :clubs)])
+                        (model/player [(model/card :king :spades)])]
+               :draw-pile [(model/card :two :diamonds)]
+               :discard-pile [(model/card :queen :hearts)]
+               :active-suit :hearts
+               :current-player 0
+               :status :in-progress
+               :winner nil
+               :passes-in-row 0}
+        events (commands/decide state {:type :draw-card
+                                       :player 0})
+        state-after-events (events/apply-events state events)]
+    (is (= 0 (:current-player state-after-events)))
+    (is (= 0 (:passes-in-row state-after-events)))))
+
+(deftest reshuffle-draw-pile-requires-exact-discard-tail
+  (let [state {:players [(model/player [(model/card :ace :clubs)])
+                        (model/player [(model/card :king :spades)])]
+               :draw-pile []
+               :discard-pile [(model/card :queen :hearts)
+                              (model/card :ace :diamonds)
+                              (model/card :two :spades)]
+               :active-suit :hearts
+               :current-player 0
+               :status :in-progress
+               :winner nil
+               :passes-in-row 0}]
+    (is (= [{:type :draw-pile-reshuffled
+             :cards [(model/card :ace :diamonds)
+                     (model/card :two :spades)]
+             :top-card (model/card :queen :hearts)}]
+           (commands/decide state {:type :reshuffle-draw-pile
+                                   :cards [(model/card :ace :diamonds)
+                                           (model/card :two :spades)]})))
+    (is (= {:type :domain-error
+            :reason :invalid-reshuffle-cards}
+           (commands/decide state {:type :reshuffle-draw-pile
+                                   :cards [(model/card :two :spades)]})))) )
+
+(deftest must-reshuffle-before-passing
+  (let [state {:players [(model/player [(model/card :ace :clubs)])
+                        (model/player [(model/card :king :spades)])]
+               :draw-pile []
+               :discard-pile [(model/card :queen :hearts)
+                              (model/card :two :diamonds)]
+               :active-suit :hearts
+               :current-player 0
+               :status :in-progress
+               :winner nil
+               :passes-in-row 0}]
+    (is (= {:type :domain-error
+            :reason :must-reshuffle-before-passing}
+           (commands/decide state {:type :pass-turn
+                                   :player 0})))))
+
+(deftest pass-turn-can-block-the-game
+  (let [state {:players [(model/player [(model/card :ace :clubs)])
+                        (model/player [(model/card :king :spades)])]
+               :draw-pile []
+               :discard-pile [(model/card :queen :hearts)]
+               :active-suit :hearts
+               :current-player 1
+               :status :in-progress
+               :winner nil
+               :passes-in-row 1}
+        events (commands/decide state {:type :pass-turn
+                                       :player 1})]
+    (is (= [{:type :turn-passed
+             :player 0}
+            {:type :game-blocked}]
+           events))))

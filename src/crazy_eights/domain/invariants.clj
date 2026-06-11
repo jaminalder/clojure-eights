@@ -8,7 +8,7 @@
   (or (nil? winner)
       (empty? (get-in players [winner :hand]))))
 
-(defn check [{:keys [players draw-pile discard-pile active-suit current-player status winner] :as state}]
+(defn check [{:keys [players draw-pile discard-pile active-suit current-player status winner passes-in-row] :as state}]
   (cond-> []
     (not (vector? players))
     (conj {:reason :players-not-vector})
@@ -41,6 +41,14 @@
     (and (= :in-progress status)
          winner)
     (conj {:reason :winner-present-while-in-progress})
+
+    (and (not (int? passes-in-row))
+         (not (nil? passes-in-row)))
+    (conj {:reason :invalid-passes-in-row})
+
+    (and (int? passes-in-row)
+         (neg? passes-in-row))
+    (conj {:reason :negative-passes-in-row})
 
     (not (winner-empty-hand? state))
     (conj {:reason :winner-hand-not-empty})))

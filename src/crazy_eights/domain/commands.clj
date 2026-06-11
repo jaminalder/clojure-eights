@@ -26,7 +26,8 @@
       :active-suit (:suit discard)
       :current-player 0
       :status :in-progress
-      :winner nil}]))
+      :winner nil
+      :passes-in-row 0}]))
 
 (defn- next-player [state]
   (mod (inc (:current-player state))
@@ -45,7 +46,7 @@
       (not= player (:current-player state))
       (domain-error :not-current-player)
 
-      (any-playable-card? state hand)
+      (model/playable-hand? state hand)
       (domain-error :must-play-before-drawing)
 
       (nil? drawn-card)
@@ -54,9 +55,46 @@
       :else
       [{:type :card-drawn
         :player player
-        :card drawn-card}
-       {:type :turn-advanced
-        :player (next-player state)}])))
+        :card drawn-card}])))
+
+(defn- reshuffle-draw-pile-events [state {:keys [cards]}]
+  (cond
+    (not= :in-progress (:status state))
+    (domain-error :reshuffle-not-allowed)
+
+    (not (model/reshuffleable? state))
+    (domain-error :reshuffle-not-allowed)
+
+    (not= (vec cards) (model/reshuffle-cards (:discard-pile state)))
+    (domain-error :invalid-reshuffle-cards)
+
+    :else
+    [{:type :draw-pile-reshuffled
+      :cards (vec cards)
+      :top-card (model/top-discard (:discard-pile state))}]))
+
+(defn- pass-turn-events [state {:keys [player]}]
+  (let [hand (current-hand state player)
+        next (next-player state)
+        passes-after (inc (:passes-in-row state))]
+    (cond
+      (not= player (:current-player state))
+      (domain-error :not-current-player)
+
+      (model/playable-hand? state hand)
+      (domain-error :cannot-pass-while-playable)
+
+      (seq (:draw-pile state))
+      (domain-error :must-play-before-drawing)
+
+      (model/reshuffleable? state)
+      (domain-error :must-reshuffle-before-passing)
+
+      :else
+      (cond-> [{:type :turn-passed
+                :player next}]
+        (= passes-after (count (:players state)))
+        (conj {:type :game-blocked})))))
 
 (defn- play-card-events [state {:keys [player card declared-suit]}]
   (let [hand (current-hand state player)]
@@ -101,4 +139,6 @@
                   (domain-error :invalid-start-game))
     :play-card (play-card-events state command)
     :draw-card (draw-card-events state command)
+    :reshuffle-draw-pile (reshuffle-draw-pile-events state command)
+    :pass-turn (pass-turn-events state command)
     (domain-error :unknown-command)))

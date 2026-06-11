@@ -29,4 +29,5 @@
      :active-suit (:suit top-card)
      :current-player 0
      :status :in-progress
-     :winner nil}))
+     :winner nil
+     :passes-in-row 0}))

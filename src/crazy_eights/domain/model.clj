@@ -38,3 +38,16 @@
     (or (= :eight (:rank candidate-card))
         (= active-suit (:suit candidate-card))
         (= (:rank top-card) (:rank candidate-card)))))
+
+(defn playable-hand? [state hand]
+  (boolean (some #(playable-card? state %) hand)))
+
+(defn reshuffleable? [{:keys [draw-pile discard-pile]}]
+  (and (empty? draw-pile)
+       (< 1 (count discard-pile))))
+
+(defn reshuffle-cards [discard-pile]
+  (vec (rest discard-pile)))
+
+(defn top-discard [discard-pile]
+  (first discard-pile))
