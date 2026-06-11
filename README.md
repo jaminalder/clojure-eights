@@ -11,11 +11,11 @@ This repository starts with the game domain only. The goal is to model Crazy Eig
 The current implementation includes:
 
 - domain data and constructors
-- command decisions for `:start-game` and `:play-card`
+- command decisions for `:start-game`, `:play-card`, `:draw-card`, `:reshuffle-draw-pile`, and `:pass-turn`
 - event application
 - invariant checks
 - executable EDN scenarios
-- property and unit tests
+- property, unit, and simulation tests
 
 ## How To Read The Project
 
@@ -24,6 +24,8 @@ The code is the primary specification.
 - domain behavior lives in `src/crazy_eights/domain/`
 - tests under `test/crazy_eights/domain/` are the executable spec
 - scenario EDN under `resources/domain/scenarios/` is kept only because it is executed by tests
+
+The domain now covers one complete playable game of Crazy Eights without scoring or multi-round match flow.
 
 ## Constraints
 
@@ -52,6 +54,12 @@ Run the shuffled-game simulation test with move logging:
 
 ```bash
 clojure -M:sim-log
+```
+
+Run just the simulation test quietly:
+
+```bash
+clojure -M:test --focus crazy_eights.domain.simulation-test
 ```
 
 Run lint:
