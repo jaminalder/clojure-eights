@@ -1,6 +1,7 @@
 (ns crazy_eights.app.simulation-test
   (:require [clojure.test :refer [deftest is]]
             [crazy_eights.app.core :as app]
+            [crazy_eights.app.logging :as logging]
             [crazy_eights.domain.model :as model]))
 
 (defn shuffle-deck [deck]
@@ -70,3 +71,16 @@
           (str "app simulation did not finish for " player-count " players\n" event-log))
       (is (pos? steps-left)
           (str "app simulation exhausted step budget for " player-count " players\n" event-log)))))
+
+(deftest app-simulation-logger-prints-events
+  (let [output (with-out-str
+                 (let [store (app/create-store)
+                       {:keys [game-id]} (app/create-game! store)]
+                   (app/subscribe! store game-id :stdout (logging/stdout-subscriber))
+                   (app/join-game! store game-id)
+                   (app/join-game! store game-id)
+                   (app/submit-action! store game-id {:type :start-game
+                                                      :player-count 2
+                                                      :deck (valid-start-deck 2)})))]
+    (is (.contains output ":game-started"))
+    (is (.contains output ":turn-changed"))))

@@ -13,6 +13,7 @@ The current implementation includes:
 - domain data and constructors
 - command decisions for `:start-game`, `:play-card`, `:draw-card`, `:reshuffle-draw-pile`, and `:pass-turn`
 - in-memory application layer with game lifecycle and lightweight player identities
+- optional application logging via app-event subscribers
 - event application
 - invariant checks
 - executable EDN scenarios
@@ -70,6 +71,8 @@ Run the application-layer simulation test:
 ```bash
 clojure -M:test --focus crazy_eights.app.simulation-test
 ```
+
+Application logging is implemented as an app-event subscriber in `crazy_eights.app.logging`, not inside the domain or app core.
 
 Run lint:
 
