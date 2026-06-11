@@ -1,0 +1,21 @@
+{:name "full single game to win"
+ :given {:state {:players [{:hand [{:rank :queen :suit :clubs}]}
+                           {:hand [{:rank :king :suit :spades}
+                                   {:rank :three :suit :hearts}]}]
+                 :draw-pile []
+                 :discard-pile [{:rank :queen :suit :hearts}]
+                 :active-suit :hearts
+                 :current-player 0
+                 :status :in-progress
+                 :winner nil
+                 :passes-in-row 0}}
+ :steps [{:command {:type :play-card
+                    :player 0
+                    :card {:rank :queen :suit :clubs}}
+          :then {:events [{:type :card-played
+                           :player 0
+                           :card {:rank :queen :suit :clubs}}
+                          {:type :game-won
+                           :player 0}]}}]
+ :then {:state-matches {:status :finished
+                        :winner 0}}}

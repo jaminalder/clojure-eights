@@ -1,0 +1,32 @@
+{:name "redraws until playable"
+ :given {:state {:players [{:hand [{:rank :ace :suit :clubs}]}
+                           {:hand [{:rank :king :suit :spades}]}]
+                 :draw-pile [{:rank :two :suit :diamonds}
+                             {:rank :queen :suit :clubs}]
+                 :discard-pile [{:rank :queen :suit :hearts}]
+                 :active-suit :hearts
+                 :current-player 0
+                 :status :in-progress
+                 :winner nil
+                 :passes-in-row 0}}
+ :steps [{:command {:type :draw-card
+                    :player 0}
+          :then {:events [{:type :card-drawn
+                           :player 0
+                           :card {:rank :two :suit :diamonds}}]
+                 :state-matches {:current-player 0}}}
+         {:command {:type :draw-card
+                    :player 0}
+          :then {:events [{:type :card-drawn
+                           :player 0
+                           :card {:rank :queen :suit :clubs}}]
+                 :state-matches {:current-player 0}}}
+         {:command {:type :play-card
+                    :player 0
+                    :card {:rank :queen :suit :clubs}}
+          :then {:events [{:type :card-played
+                           :player 0
+                           :card {:rank :queen :suit :clubs}}
+                          {:type :turn-advanced
+                           :player 1}]}}]
+ :then {:state-matches {:current-player 1}}}

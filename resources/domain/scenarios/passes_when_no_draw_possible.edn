@@ -1,0 +1,16 @@
+{:name "passes when no draw possible"
+ :given {:state {:players [{:hand [{:rank :ace :suit :clubs}]}
+                           {:hand [{:rank :king :suit :spades}]}]
+                 :draw-pile []
+                 :discard-pile [{:rank :queen :suit :hearts}]
+                 :active-suit :hearts
+                 :current-player 0
+                 :status :in-progress
+                 :winner nil
+                 :passes-in-row 0}}
+ :steps [{:command {:type :pass-turn
+                    :player 0}
+          :then {:events [{:type :turn-passed
+                           :player 1}]}}]
+ :then {:state-matches {:current-player 1
+                        :passes-in-row 1}}}

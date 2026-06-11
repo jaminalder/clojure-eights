@@ -12,11 +12,9 @@
                   :player 0}}
  :then {:events [{:type :card-drawn
                   :player 0
-                  :card {:rank :two :suit :diamonds}}
-                 {:type :turn-advanced
-                  :player 1}]
+                  :card {:rank :two :suit :diamonds}}]
         :state-matches {:draw-pile [{:rank :three :suit :diamonds}]
                         :players [{:hand [{:rank :ace :suit :clubs}
                                           {:rank :two :suit :diamonds}]}
                                   {:hand [{:rank :king :suit :spades}]}]
-                        :current-player 1}}}
+                        :current-player 0}}}

@@ -60,3 +60,35 @@
         next-state (events/apply-events state events)]
     (is (= :card-drawn (:type (first events))))
     (is (empty? (invariants/check next-state)))))
+
+(deftest passed-turn-state-preserves-invariants
+  (let [state {:players [(model/player [(model/card :ace :clubs)])
+                        (model/player [(model/card :king :spades)])]
+               :draw-pile []
+               :discard-pile [(model/card :queen :hearts)]
+               :active-suit :hearts
+               :current-player 0
+               :status :in-progress
+               :winner nil
+               :passes-in-row 0}
+        events (commands/decide state {:type :pass-turn
+                                       :player 0})
+        next-state (events/apply-events state events)]
+    (is (= :turn-passed (:type (first events))))
+    (is (empty? (invariants/check next-state)))))
+
+(deftest blocked-game-state-preserves-invariants
+  (let [state {:players [(model/player [(model/card :ace :clubs)])
+                        (model/player [(model/card :king :spades)])]
+               :draw-pile []
+               :discard-pile [(model/card :queen :hearts)]
+               :active-suit :hearts
+               :current-player 1
+               :status :in-progress
+               :winner nil
+               :passes-in-row 1}
+        events (commands/decide state {:type :pass-turn
+                                       :player 1})
+        next-state (events/apply-events state events)]
+    (is (= :game-blocked (:type (last events))))
+    (is (empty? (invariants/check next-state)))))
