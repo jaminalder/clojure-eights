@@ -9,7 +9,8 @@
   (-> state
       (update-in [:players player :hand]
                  (fn [hand]
-                   (vec (remove #(= % card) hand))))
+                   (let [[before after] (split-with #(not= % card) hand)]
+                     (vec (concat before (rest after))))))
       (update :discard-pile conj card)
       (assoc :active-suit (:suit card)
              :passes-in-row 0)))

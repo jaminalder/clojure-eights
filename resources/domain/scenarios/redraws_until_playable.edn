@@ -29,4 +29,6 @@
                            :card {:rank :queen :suit :clubs}}
                           {:type :turn-advanced
                            :player 1}]}}]
- :then {:state-matches {:current-player 1}}}
+ :then {:state-matches {:current-player 1
+                        :status :in-progress
+                        :winner nil}}}

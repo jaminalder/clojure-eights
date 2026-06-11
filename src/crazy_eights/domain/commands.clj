@@ -29,6 +29,13 @@
       :winner nil
       :passes-in-row 0}]))
 
+(defn- game-finished? [state]
+  (= :finished (:status state)))
+
+(defn- reject-if-finished [state]
+  (when (game-finished? state)
+    (domain-error :game-already-finished)))
+
 (defn- next-player [state]
   (mod (inc (:current-player state))
        (count (:players state))))
@@ -37,99 +44,108 @@
   (get-in state [:players player :hand]))
 
 (defn- draw-card-events [state {:keys [player]}]
-  (let [hand (current-hand state player)
-        drawn-card (first (:draw-pile state))]
-    (cond
-      (not= player (:current-player state))
-      (domain-error :not-current-player)
+  (if-let [error (reject-if-finished state)]
+    error
+    (let [hand (current-hand state player)
+          drawn-card (first (:draw-pile state))]
+      (cond
+        (not= player (:current-player state))
+        (domain-error :not-current-player)
 
-      (model/playable-hand? state hand)
-      (domain-error :must-play-before-drawing)
+        (model/playable-hand? state hand)
+        (domain-error :must-play-before-drawing)
 
-      (nil? drawn-card)
-      (domain-error :draw-pile-empty)
+        (nil? drawn-card)
+        (domain-error :draw-pile-empty)
 
-      :else
-      [{:type :card-drawn
-        :player player
-        :card drawn-card}])))
+        :else
+        [{:type :card-drawn
+          :player player
+          :card drawn-card}]))))
 
 (defn- reshuffle-draw-pile-events [state {:keys [cards]}]
-  (cond
-    (not= :in-progress (:status state))
-    (domain-error :reshuffle-not-allowed)
+  (if-let [error (reject-if-finished state)]
+    error
+    (cond
+      (not (model/reshuffleable? state))
+      (domain-error :reshuffle-not-allowed)
 
-    (not (model/reshuffleable? state))
-    (domain-error :reshuffle-not-allowed)
+      (not= (vec cards) (model/reshuffle-cards (:discard-pile state)))
+      (domain-error :invalid-reshuffle-cards)
 
-    (not= (vec cards) (model/reshuffle-cards (:discard-pile state)))
-    (domain-error :invalid-reshuffle-cards)
-
-    :else
-    [{:type :draw-pile-reshuffled
-      :cards (vec cards)
-      :top-card (model/top-discard (:discard-pile state))}]))
+      :else
+      [{:type :draw-pile-reshuffled
+        :cards (vec cards)
+        :top-card (model/top-discard (:discard-pile state))}])))
 
 (defn- pass-turn-events [state {:keys [player]}]
-  (let [hand (current-hand state player)
-        next-player-index (next-player state)
-        passes-after (inc (:passes-in-row state))]
-    (cond
-      (not= player (:current-player state))
-      (domain-error :not-current-player)
+  (if-let [error (reject-if-finished state)]
+    error
+    (let [hand (current-hand state player)
+          next-player-index (next-player state)
+          passes-after (inc (:passes-in-row state))]
+      (cond
+        (not= player (:current-player state))
+        (domain-error :not-current-player)
 
-      (model/playable-hand? state hand)
-      (domain-error :cannot-pass-while-playable)
+        (model/playable-hand? state hand)
+        (domain-error :cannot-pass-while-playable)
 
-      (seq (:draw-pile state))
-      (domain-error :must-play-before-drawing)
+        (seq (:draw-pile state))
+        (domain-error :must-play-before-drawing)
 
-      (model/reshuffleable? state)
-      (domain-error :must-reshuffle-before-passing)
+        (model/reshuffleable? state)
+        (domain-error :must-reshuffle-before-passing)
 
-      :else
-      (cond-> [{:type :turn-passed
-                :player next-player-index}]
-        (= passes-after (count (:players state)))
-        (conj {:type :game-blocked})))))
+        :else
+        (cond-> [{:type :turn-passed
+                  :player next-player-index}]
+          (= passes-after (count (:players state)))
+          (conj {:type :game-blocked}))))))
 
 (defn- play-card-events [state {:keys [player card declared-suit]}]
-  (let [hand (current-hand state player)]
-    (cond
-      (not= player (:current-player state))
-      (domain-error :not-current-player)
+  (if-let [error (reject-if-finished state)]
+    error
+    (let [hand (current-hand state player)
+          [before after] (split-with #(not= % card) hand)
+          remaining-hand (vec (concat before (rest after)))]
+      (cond
+        (not= player (:current-player state))
+        (domain-error :not-current-player)
 
-      (not (model/card-in-hand? hand card))
-      (domain-error :card-not-in-hand)
+        (not (model/card-in-hand? hand card))
+        (domain-error :card-not-in-hand)
 
-      (not (model/playable-card? state card))
-      (domain-error :card-not-playable)
+        (not (model/playable-card? state card))
+        (domain-error :card-not-playable)
 
-      (and (model/requires-declared-suit? card)
-           (not (model/valid-declared-suit? card declared-suit)))
-      (domain-error :declared-suit-required)
+        (and (model/requires-declared-suit? card)
+             (not (model/valid-declared-suit? card declared-suit)))
+        (domain-error :declared-suit-required)
 
-      :else
-      (cond-> [{:type :card-played
-                :player player
-                :card card}]
-        (model/requires-declared-suit? card)
-        (conj {:type :suit-declared
-               :suit declared-suit})
+        :else
+        (cond-> [{:type :card-played
+                  :player player
+                  :card card}]
+          (model/requires-declared-suit? card)
+          (conj {:type :suit-declared
+                 :suit declared-suit})
 
-        (empty? (remove #(= % card) hand))
-        (conj {:type :game-won
-               :player player})
+          (empty? remaining-hand)
+          (conj {:type :game-won
+                 :player player})
 
-        (seq (remove #(= % card) hand))
-        (conj {:type :turn-advanced
-               :player (next-player state)})))))
+          (seq remaining-hand)
+          (conj {:type :turn-advanced
+                 :player (next-player state)}))))))
 
 (defn decide [state command]
   (case (:type command)
     :start-game (if (and (nil? state)
                          (pos-int? (:player-count command))
                          (every? model/card? (:deck command))
+                         (not= :eight (:rank (first (vec (remaining-deck (:player-count command)
+                                                                       (:deck command))))))
                          (< (* (:player-count command) cards-per-player)
                             (count (:deck command))))
                   (start-game-events command)

@@ -47,7 +47,7 @@
        (< 1 (count discard-pile))))
 
 (defn reshuffle-cards [discard-pile]
-  (vec (rest discard-pile)))
+  (vec (butlast discard-pile)))
 
 (defn top-discard [discard-pile]
-  (first discard-pile))
+  (peek discard-pile))

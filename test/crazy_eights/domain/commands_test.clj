@@ -162,12 +162,12 @@
                :winner nil
                :passes-in-row 0}]
     (is (= [{:type :draw-pile-reshuffled
-             :cards [(model/card :ace :diamonds)
-                     (model/card :two :spades)]
-             :top-card (model/card :queen :hearts)}]
+             :cards [(model/card :queen :hearts)
+                     (model/card :ace :diamonds)]
+             :top-card (model/card :two :spades)}]
            (commands/decide state {:type :reshuffle-draw-pile
-                                   :cards [(model/card :ace :diamonds)
-                                           (model/card :two :spades)]})))
+                                   :cards [(model/card :queen :hearts)
+                                           (model/card :ace :diamonds)]})))
     (is (= {:type :domain-error
             :reason :invalid-reshuffle-cards}
            (commands/decide state {:type :reshuffle-draw-pile
@@ -205,3 +205,99 @@
              :player 0}
             {:type :game-blocked}]
            events))))
+
+(deftest finished-games-reject-further-commands
+  (let [finished-state {:players [(model/player [(model/card :queen :clubs)])
+                                (model/player [(model/card :king :spades)])]
+                        :draw-pile [(model/card :two :diamonds)]
+                        :discard-pile [(model/card :queen :hearts)]
+                        :active-suit :hearts
+                        :current-player 0
+                        :status :finished
+                        :winner 1
+                        :passes-in-row 0}]
+    (is (= {:type :domain-error
+            :reason :game-already-finished}
+           (commands/decide finished-state {:type :play-card
+                                            :player 0
+                                            :card (model/card :queen :clubs)})))
+    (is (= {:type :domain-error
+            :reason :game-already-finished}
+           (commands/decide finished-state {:type :draw-card
+                                            :player 0})))
+    (is (= {:type :domain-error
+            :reason :game-already-finished}
+           (commands/decide finished-state {:type :pass-turn
+                                            :player 0})))
+    (is (= {:type :domain-error
+            :reason :game-already-finished}
+           (commands/decide finished-state {:type :reshuffle-draw-pile
+                                            :cards []})))))
+
+(deftest playing-one-card-removes-only-one-equal-card
+  (let [state {:players [(model/player [(model/card :queen :clubs)
+                                        (model/card :queen :clubs)])
+                        (model/player [(model/card :king :spades)])]
+               :draw-pile []
+               :discard-pile [(model/card :queen :hearts)]
+               :active-suit :hearts
+               :current-player 0
+               :status :in-progress
+               :winner nil
+               :passes-in-row 0}
+        events (commands/decide state {:type :play-card
+                                       :player 0
+                                       :card (model/card :queen :clubs)})
+        next-state (events/apply-events state events)]
+    (is (= [{:type :card-played
+             :player 0
+             :card (model/card :queen :clubs)}
+            {:type :turn-advanced
+             :player 1}]
+           events))
+    (is (= [(model/card :queen :clubs)]
+           (get-in next-state [:players 0 :hand])))))
+
+(deftest playing-card-not-first-in-hand-keeps-remaining-cards
+  (let [state {:players [(model/player [(model/card :ace :diamonds)
+                                        (model/card :queen :clubs)])
+                        (model/player [(model/card :king :spades)])]
+               :draw-pile []
+               :discard-pile [(model/card :queen :hearts)]
+               :active-suit :hearts
+               :current-player 0
+               :status :in-progress
+               :winner nil
+               :passes-in-row 0}
+        events (commands/decide state {:type :play-card
+                                       :player 0
+                                       :card (model/card :queen :clubs)})
+        next-state (events/apply-events state events)]
+    (is (= [{:type :card-played
+             :player 0
+             :card (model/card :queen :clubs)}
+            {:type :turn-advanced
+             :player 1}]
+           events))
+    (is (= [(model/card :ace :diamonds)]
+           (get-in next-state [:players 0 :hand])))))
+
+(deftest start-game-rejects-eight-as-initial-discard
+  (let [deck [(model/card :ace :clubs)
+              (model/card :two :clubs)
+              (model/card :three :clubs)
+              (model/card :four :clubs)
+              (model/card :five :clubs)
+              (model/card :six :clubs)
+              (model/card :seven :clubs)
+              (model/card :eight :clubs)
+              (model/card :nine :clubs)
+              (model/card :ten :clubs)
+              (model/card :eight :diamonds)
+              (model/card :queen :spades)]
+        command {:type :start-game
+                 :player-count 2
+                 :deck deck}]
+    (is (= {:type :domain-error
+            :reason :invalid-start-game}
+           (commands/decide nil command)))))

@@ -11,12 +11,12 @@
                  :winner nil
                  :passes-in-row 0}}
  :steps [{:command {:type :reshuffle-draw-pile
-                    :cards [{:rank :ace :suit :diamonds}
-                            {:rank :two :suit :spades}]}
+                    :cards [{:rank :queen :suit :hearts}
+                            {:rank :ace :suit :diamonds}]}
           :then {:events [{:type :draw-pile-reshuffled
-                           :cards [{:rank :ace :suit :diamonds}
-                                   {:rank :two :suit :spades}]
-                           :top-card {:rank :queen :suit :hearts}}]}}]
- :then {:state-matches {:draw-pile [{:rank :ace :suit :diamonds}
-                                    {:rank :two :suit :spades}]
-                        :discard-pile [{:rank :queen :suit :hearts}]}}}
+                           :cards [{:rank :queen :suit :hearts}
+                                   {:rank :ace :suit :diamonds}]
+                           :top-card {:rank :two :suit :spades}}]}}]
+ :then {:state-matches {:draw-pile [{:rank :queen :suit :hearts}
+                                    {:rank :ace :suit :diamonds}]
+                        :discard-pile [{:rank :two :suit :spades}]}}}
