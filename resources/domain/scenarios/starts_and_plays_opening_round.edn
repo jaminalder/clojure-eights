@@ -68,7 +68,7 @@
                            {:rank :jack :suit :spades}
                            {:rank :queen :suit :spades}
                            {:rank :king :suit :spades}]}
-          :then {:events [{:type :game-started
+         :then {:events [{:type :game-started
                            :players [{:hand [{:rank :queen :suit :hearts}
                                               {:rank :ace :suit :diamonds}
                                               {:rank :queen :suit :spades}
