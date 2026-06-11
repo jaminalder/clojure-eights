@@ -14,6 +14,11 @@
   {:rank rank
    :suit suit})
 
+(def full-deck
+  (vec (for [suit suits
+             rank ranks]
+         (card rank suit))))
+
 (defn player [hand]
   {:hand (vec hand)})
 

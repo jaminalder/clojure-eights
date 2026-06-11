@@ -1,0 +1,180 @@
+{:name "starts and plays opening round"
+ :given {:state nil}
+ :steps [{:command {:type :start-game
+                    :player-count 4
+                    :deck [{:rank :queen :suit :hearts}
+                           {:rank :ace :suit :diamonds}
+                           {:rank :queen :suit :spades}
+                           {:rank :queen :suit :diamonds}
+                           {:rank :eight :suit :diamonds}
+                           {:rank :two :suit :hearts}
+                           {:rank :ace :suit :clubs}
+                           {:rank :king :suit :spades}
+                           {:rank :queen :suit :hearts}
+                           {:rank :jack :suit :clubs}
+                           {:rank :queen :suit :clubs}
+                           {:rank :jack :suit :diamonds}
+                           {:rank :five :suit :hearts}
+                           {:rank :six :suit :diamonds}
+                           {:rank :seven :suit :diamonds}
+                           {:rank :five :suit :clubs}
+                           {:rank :seven :suit :clubs}
+                           {:rank :eight :suit :diamonds}
+                           {:rank :ace :suit :clubs}
+                           {:rank :two :suit :clubs}
+                           {:rank :three :suit :clubs}
+                           {:rank :four :suit :clubs}
+                           {:rank :five :suit :clubs}
+                           {:rank :six :suit :clubs}
+                           {:rank :seven :suit :clubs}
+                           {:rank :eight :suit :clubs}
+                           {:rank :nine :suit :clubs}
+                           {:rank :ten :suit :clubs}
+                           {:rank :jack :suit :clubs}
+                           {:rank :queen :suit :clubs}
+                           {:rank :king :suit :clubs}
+                           {:rank :ace :suit :diamonds}
+                           {:rank :two :suit :diamonds}
+                           {:rank :three :suit :diamonds}
+                           {:rank :four :suit :diamonds}
+                           {:rank :five :suit :diamonds}
+                           {:rank :six :suit :diamonds}
+                           {:rank :seven :suit :diamonds}
+                           {:rank :nine :suit :diamonds}
+                           {:rank :ten :suit :diamonds}
+                           {:rank :jack :suit :diamonds}
+                           {:rank :queen :suit :diamonds}
+                           {:rank :king :suit :diamonds}
+                           {:rank :ace :suit :hearts}
+                           {:rank :two :suit :hearts}
+                           {:rank :three :suit :hearts}
+                           {:rank :four :suit :hearts}
+                           {:rank :six :suit :hearts}
+                           {:rank :seven :suit :hearts}
+                           {:rank :eight :suit :hearts}
+                           {:rank :nine :suit :hearts}
+                           {:rank :ten :suit :hearts}
+                           {:rank :king :suit :hearts}
+                           {:rank :ace :suit :spades}
+                           {:rank :two :suit :spades}
+                           {:rank :three :suit :spades}
+                           {:rank :four :suit :spades}
+                           {:rank :five :suit :spades}
+                           {:rank :six :suit :spades}
+                           {:rank :seven :suit :spades}
+                           {:rank :eight :suit :spades}
+                           {:rank :nine :suit :spades}
+                           {:rank :ten :suit :spades}
+                           {:rank :jack :suit :spades}
+                           {:rank :queen :suit :spades}
+                           {:rank :king :suit :spades}]}
+          :then {:events [{:type :game-started
+                           :players [{:hand [{:rank :queen :suit :hearts}
+                                              {:rank :ace :suit :diamonds}
+                                              {:rank :queen :suit :spades}
+                                              {:rank :queen :suit :diamonds}
+                                              {:rank :eight :suit :diamonds}]}
+                                     {:hand [{:rank :two :suit :hearts}
+                                              {:rank :ace :suit :clubs}
+                                              {:rank :king :suit :spades}
+                                              {:rank :queen :suit :hearts}
+                                              {:rank :jack :suit :clubs}]}
+                                     {:hand [{:rank :queen :suit :clubs}
+                                              {:rank :jack :suit :diamonds}
+                                              {:rank :five :suit :hearts}
+                                              {:rank :six :suit :diamonds}
+                                              {:rank :seven :suit :diamonds}]}
+                                     {:hand [{:rank :five :suit :clubs}
+                                              {:rank :seven :suit :clubs}
+                                              {:rank :eight :suit :diamonds}
+                                              {:rank :ace :suit :clubs}
+                                              {:rank :two :suit :clubs}]}]
+                           :draw-pile [{:rank :four :suit :clubs}
+                                       {:rank :five :suit :clubs}
+                                       {:rank :six :suit :clubs}
+                                       {:rank :seven :suit :clubs}
+                                       {:rank :eight :suit :clubs}
+                                       {:rank :nine :suit :clubs}
+                                       {:rank :ten :suit :clubs}
+                                       {:rank :jack :suit :clubs}
+                                       {:rank :queen :suit :clubs}
+                                       {:rank :king :suit :clubs}
+                                       {:rank :ace :suit :diamonds}
+                                       {:rank :two :suit :diamonds}
+                                       {:rank :three :suit :diamonds}
+                                       {:rank :four :suit :diamonds}
+                                       {:rank :five :suit :diamonds}
+                                       {:rank :six :suit :diamonds}
+                                       {:rank :seven :suit :diamonds}
+                                       {:rank :nine :suit :diamonds}
+                                       {:rank :ten :suit :diamonds}
+                                       {:rank :jack :suit :diamonds}
+                                       {:rank :queen :suit :diamonds}
+                                       {:rank :king :suit :diamonds}
+                                       {:rank :ace :suit :hearts}
+                                       {:rank :two :suit :hearts}
+                                       {:rank :three :suit :hearts}
+                                       {:rank :four :suit :hearts}
+                                       {:rank :six :suit :hearts}
+                                       {:rank :seven :suit :hearts}
+                                       {:rank :eight :suit :hearts}
+                                       {:rank :nine :suit :hearts}
+                                       {:rank :ten :suit :hearts}
+                                       {:rank :king :suit :hearts}
+                                       {:rank :ace :suit :spades}
+                                       {:rank :two :suit :spades}
+                                       {:rank :three :suit :spades}
+                                       {:rank :four :suit :spades}
+                                       {:rank :five :suit :spades}
+                                       {:rank :six :suit :spades}
+                                       {:rank :seven :suit :spades}
+                                       {:rank :eight :suit :spades}
+                                       {:rank :nine :suit :spades}
+                                       {:rank :ten :suit :spades}
+                                       {:rank :jack :suit :spades}
+                                       {:rank :queen :suit :spades}
+                                       {:rank :king :suit :spades}]
+                           :discard-pile [{:rank :three :suit :clubs}]
+                           :active-suit :clubs
+                           :current-player 0
+                           :status :in-progress
+                           :winner nil
+                           :passes-in-row 0}]}}
+         {:command {:type :play-card
+                    :player 0
+                    :card {:rank :eight :suit :diamonds}
+                    :declared-suit :hearts}
+          :then {:events [{:type :card-played
+                           :player 0
+                           :card {:rank :eight :suit :diamonds}}
+                           {:type :suit-declared
+                            :suit :hearts}
+                           {:type :turn-advanced
+                            :player 1}]}}
+         {:command {:type :play-card
+                    :player 1
+                    :card {:rank :two :suit :hearts}}
+          :then {:events [{:type :card-played
+                           :player 1
+                           :card {:rank :two :suit :hearts}}
+                          {:type :turn-advanced
+                           :player 2}]}}
+         {:command {:type :play-card
+                    :player 2
+                    :card {:rank :five :suit :hearts}}
+          :then {:events [{:type :card-played
+                           :player 2
+                           :card {:rank :five :suit :hearts}}
+                           {:type :turn-advanced
+                            :player 3}]}}
+         {:command {:type :play-card
+                    :player 3
+                    :card {:rank :five :suit :clubs}}
+          :then {:events [{:type :card-played
+                           :player 3
+                           :card {:rank :five :suit :clubs}}
+                          {:type :turn-advanced
+                           :player 0}]}}]
+ :then {:state-matches {:status :in-progress
+                         :current-player 0
+                         :winner nil}}}
