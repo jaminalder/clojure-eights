@@ -31,6 +31,21 @@ The current domain models one complete Crazy Eights game:
 
 Scoring and multi-round match flow are intentionally out of scope.
 
+## Application Boundary
+
+Outside the pure domain, the project now has a small in-memory application layer.
+
+It is responsible for:
+
+- game lifecycle and registry
+- lightweight player identities and seat assignment
+- translating player actions into domain commands
+- publishing app-level events through in-memory pub/sub
+
+It is not responsible for HTTP, WebSocket, SSE, CLI I/O, auth, or persistence.
+
+Those concerns belong in future clients and transport layers around the application shell.
+
 ## What Counts As Specification
 
 - source code in `src/crazy_eights/domain/`
@@ -38,5 +53,7 @@ Scoring and multi-round match flow are intentionally out of scope.
 - executable scenario data in `resources/domain/scenarios/`
 
 The simulation test is additional confidence coverage for shuffled games, but the domain itself remains deterministic because every deck order is passed in explicitly.
+
+The application layer has its own full-game simulation coverage as well, proving the shell around the domain can manage a game end-to-end.
 
 Anything else should justify itself by affecting execution or preventing confusion.

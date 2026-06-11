@@ -12,17 +12,20 @@ The current implementation includes:
 
 - domain data and constructors
 - command decisions for `:start-game`, `:play-card`, `:draw-card`, `:reshuffle-draw-pile`, and `:pass-turn`
+- in-memory application layer with game lifecycle and lightweight player identities
 - event application
 - invariant checks
 - executable EDN scenarios
-- property, unit, and simulation tests
+- property, unit, app, and simulation tests
 
 ## How To Read The Project
 
 The code is the primary specification.
 
 - domain behavior lives in `src/crazy_eights/domain/`
+- application lifecycle lives in `src/crazy_eights/app/`
 - tests under `test/crazy_eights/domain/` are the executable spec
+- app tests under `test/crazy_eights/app/` exercise the in-memory shell around the domain
 - scenario EDN under `resources/domain/scenarios/` is kept only because it is executed by tests
 
 The domain now covers one complete playable game of Crazy Eights without scoring or multi-round match flow.
@@ -60,6 +63,12 @@ Run just the simulation test quietly:
 
 ```bash
 clojure -M:test --focus crazy_eights.domain.simulation-test
+```
+
+Run the application-layer simulation test:
+
+```bash
+clojure -M:test --focus crazy_eights.app.simulation-test
 ```
 
 Run lint:
