@@ -15,16 +15,33 @@
                 (= v actual-value))))
           expected))
 
-(defn run-scenario [scenario]
-  (let [state (get-in scenario [:given :state])
-        command (get-in scenario [:when :command])
-        result (commands/decide state command)]
+(defn- run-step [state {:keys [command then]}]
+  (let [result (commands/decide state command)]
     (if (= :domain-error (:type result))
-      {:pass? (= (get-in scenario [:then :error])
-                 (select-keys result [:reason]))}
+      {:pass? (= (:error then)
+                 (select-keys result [:reason]))
+       :state state}
       (let [next-state (events/apply-events state result)]
-        {:pass? (and (= (get-in scenario [:then :events]) result)
-                     (subset-match? (get-in scenario [:then :state-matches]) next-state))}))))
+        {:pass? (and (= (:events then) result)
+                     (or (nil? (:state-matches then))
+                         (subset-match? (:state-matches then) next-state)))
+         :state next-state}))))
+
+(defn run-scenario [scenario]
+  (let [initial-state (get-in scenario [:given :state])]
+    (if-let [steps (:steps scenario)]
+      (let [result (reduce (fn [{:keys [pass? state] :as acc} step]
+                             (if-not pass?
+                               acc
+                               (run-step state step)))
+                           {:pass? true :state initial-state}
+                           steps)]
+        {:pass? (and (:pass? result)
+                     (or (nil? (get-in scenario [:then :state-matches]))
+                         (subset-match? (get-in scenario [:then :state-matches])
+                                        (:state result))))})
+      (run-step initial-state {:command (get-in scenario [:when :command])
+                               :then (:then scenario)}))))
 
 (defn run-scenario-resource [path]
   (run-scenario (load-scenario-resource path)))
