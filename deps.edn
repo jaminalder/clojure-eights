@@ -10,5 +10,8 @@
   :sim-log {:extra-paths ["test"]
             :extra-deps {lambdaisland/kaocha {:mvn/version "1.91.1392"}}
             :main-opts ["-m" "crazy_eights.domain.simulation-runner"]}
+  :app-sim-log {:extra-paths ["test"]
+                :extra-deps {lambdaisland/kaocha {:mvn/version "1.91.1392"}}
+                :main-opts ["-m" "crazy_eights.app.simulation-runner"]}
   :lint {:extra-deps {clj-kondo/clj-kondo {:mvn/version "2024.08.29"}}
          :main-opts ["-m" "clj-kondo.main" "--lint" "src" "test"]}}}

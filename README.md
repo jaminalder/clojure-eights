@@ -72,6 +72,12 @@ Run the application-layer simulation test:
 clojure -M:test --focus crazy_eights.app.simulation-test
 ```
 
+Run the application-layer simulation test with logging to stdout:
+
+```bash
+clojure -M:app-sim-log
+```
+
 Application logging is implemented as an app-event subscriber in `crazy_eights.app.logging`, not inside the domain or app core.
 
 Run lint:

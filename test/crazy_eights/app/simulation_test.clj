@@ -4,6 +4,8 @@
             [crazy_eights.app.logging :as logging]
             [crazy_eights.domain.model :as model]))
 
+(def ^:dynamic *log-app-simulation* false)
+
 (defn shuffle-deck [deck]
   (vec (shuffle deck)))
 
@@ -53,6 +55,8 @@
                                                   :deck (valid-start-deck player-count)})
         event-log (atom [])]
     (app/subscribe! store game-id :simulation #(swap! event-log conj %))
+    (when *log-app-simulation*
+      (app/subscribe! store game-id :stdout (logging/stdout-subscriber)))
     (loop [steps-left 500]
       (let [state (:state (app/get-game store game-id))]
         (if (or (= :finished (:status state)) (zero? steps-left))
