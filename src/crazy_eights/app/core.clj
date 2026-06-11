@@ -1,7 +1,8 @@
 (ns crazy_eights.app.core
   (:require [crazy_eights.app.pubsub :as pubsub]
             [crazy_eights.domain.commands :as commands]
-            [crazy_eights.domain.events :as events]))
+            [crazy_eights.domain.events :as events]
+            [crazy_eights.domain.model :as model]))
 
 (defn create-store []
   (atom {:next-game-id 0
@@ -37,10 +38,15 @@
     (swap! store
            (fn [state]
              (let [game (get-in state [:games game-id])
-                   seat (count (:players game))
-                   player-id (next-player-id game)]
-               (reset! joined {:player-id player-id :seat seat})
-               (assoc-in state [:games game-id :players player-id] {:seat seat}))))
+                   seat (count (:players game))]
+               (if (<= model/max-player-count seat)
+                 (do
+                   (reset! joined {:type :app-error
+                                   :reason :game-full})
+                   state)
+                 (let [player-id (next-player-id game)]
+                   (reset! joined {:player-id player-id :seat seat})
+                   (assoc-in state [:games game-id :players player-id] {:seat seat}))))))
     @joined))
 
 (defn get-game [store game-id]

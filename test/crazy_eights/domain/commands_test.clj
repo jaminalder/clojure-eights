@@ -301,3 +301,10 @@
     (is (= {:type :domain-error
             :reason :invalid-start-game}
            (commands/decide nil command)))))
+
+(deftest start-game-rejects-more-than-ten-players
+  (is (= {:type :domain-error
+          :reason :invalid-start-game}
+         (commands/decide nil {:type :start-game
+                               :player-count 11
+                               :deck model/full-deck}))))

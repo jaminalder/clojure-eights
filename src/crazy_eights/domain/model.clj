@@ -19,6 +19,11 @@
              rank ranks]
          (card rank suit))))
 
+(def cards-per-player 5)
+
+(def max-player-count
+  (quot (dec (count full-deck)) cards-per-player))
+
 (defn player [hand]
   {:hand (vec hand)})
 

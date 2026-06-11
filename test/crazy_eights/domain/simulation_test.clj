@@ -10,14 +10,18 @@
   (vec (shuffle deck)))
 
 (defn valid-start-deck [player-count]
-  (loop []
-    (let [deck (shuffle-deck model/full-deck)
-          result (commands/decide nil {:type :start-game
-                                       :player-count player-count
-                                       :deck deck})]
-      (if (= :domain-error (:type result))
-        (recur)
-        deck))))
+  (if (<= 2 player-count model/max-player-count)
+    (loop []
+      (let [deck (shuffle-deck model/full-deck)
+            result (commands/decide nil {:type :start-game
+                                         :player-count player-count
+                                         :deck deck})]
+        (if (= :domain-error (:type result))
+          (recur)
+          deck)))
+    (throw (ex-info "invalid player-count for single deck"
+                    {:player-count player-count
+                     :max-player-count model/max-player-count}))))
 
 (defn playable-card [state player]
   (first (filter #(model/playable-card? state %)
@@ -87,11 +91,16 @@
 
 (deftest transcript-text-includes-command-and-events
   (let [text (transcript-text [{:command {:type :play-card}
-                                :events [{:type :card-played}]
-                                :summary {:status :in-progress}}])]
+                                 :events [{:type :card-played}]
+                                 :summary {:status :in-progress}}])]
     (is (.contains text ":command"))
     (is (.contains text ":events"))
     (is (.contains text ":card-played"))))
+
+(deftest valid-start-deck-rejects-invalid-player-count
+  (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                        #"invalid player-count"
+                        (valid-start-deck 11))))
 
 (deftest shuffled-games-reach-an-end-state
   (doseq [player-count [2 3 4]]

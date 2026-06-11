@@ -10,18 +10,22 @@
   (vec (shuffle deck)))
 
 (defn valid-start-deck [player-count]
-  (loop []
-    (let [deck (shuffle-deck model/full-deck)
-          store (app/create-store)
-          {:keys [game-id]} (app/create-game! store)]
-      (dotimes [_ player-count]
-        (app/join-game! store game-id))
-      (let [result (app/submit-action! store game-id {:type :start-game
-                                                      :player-count player-count
-                                                      :deck deck})]
-        (if (= :domain-error (:type (:events result)))
-          (recur)
-          deck)))))
+  (if (<= 2 player-count model/max-player-count)
+    (loop []
+      (let [deck (shuffle-deck model/full-deck)
+            store (app/create-store)
+            {:keys [game-id]} (app/create-game! store)]
+        (dotimes [_ player-count]
+          (app/join-game! store game-id))
+        (let [result (app/submit-action! store game-id {:type :start-game
+                                                        :player-count player-count
+                                                        :deck deck})]
+          (if (= :domain-error (:type (:events result)))
+            (recur)
+            deck))))
+    (throw (ex-info "invalid player-count for single deck"
+                    {:player-count player-count
+                     :max-player-count model/max-player-count}))))
 
 (defn playable-card [state player]
   (first (filter #(model/playable-card? state %)
@@ -68,13 +72,18 @@
             (recur (dec steps-left))))))))
 
 (deftest app-layer-simulated-games-finish
-  (doseq [player-count [2 3 4]]
+  (doseq [player-count [2 3 4 5 6]]
     (let [{:keys [state events steps-left]} (run-app-simulated-game player-count)
           event-log (with-out-str (doseq [event events] (prn event)))]
       (is (= :finished (:status state))
           (str "app simulation did not finish for " player-count " players\n" event-log))
       (is (pos? steps-left)
           (str "app simulation exhausted step budget for " player-count " players\n" event-log)))))
+
+(deftest valid-start-deck-rejects-invalid-player-count
+  (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                        #"invalid player-count"
+                        (valid-start-deck 11))))
 
 (deftest app-simulation-logger-prints-events
   (let [output (with-out-str

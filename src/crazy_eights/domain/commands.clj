@@ -1,19 +1,18 @@
 (ns crazy_eights.domain.commands
   (:require [crazy_eights.domain.model :as model]))
 
-(def cards-per-player 5)
-
 (defn- domain-error [reason]
   {:type :domain-error
    :reason reason})
 
 (defn- deal-hands [player-count deck]
   (mapv (fn [index]
-          (model/player (take cards-per-player (drop (* index cards-per-player) deck))))
+          (model/player (take model/cards-per-player
+                              (drop (* index model/cards-per-player) deck))))
         (range player-count)))
 
 (defn- remaining-deck [player-count deck]
-  (drop (* player-count cards-per-player) deck))
+  (drop (* player-count model/cards-per-player) deck))
 
 (defn- start-game-events [{:keys [player-count deck]}]
   (let [remaining (vec (remaining-deck player-count deck))
@@ -142,11 +141,12 @@
 (defn decide [state command]
   (case (:type command)
     :start-game (if (and (nil? state)
+                         (<= 2 (:player-count command) model/max-player-count)
                          (pos-int? (:player-count command))
                          (every? model/card? (:deck command))
                          (not= :eight (:rank (first (vec (remaining-deck (:player-count command)
                                                                        (:deck command))))))
-                         (< (* (:player-count command) cards-per-player)
+                         (< (* (:player-count command) model/cards-per-player)
                             (count (:deck command))))
                   (start-game-events command)
                   (domain-error :invalid-start-game))

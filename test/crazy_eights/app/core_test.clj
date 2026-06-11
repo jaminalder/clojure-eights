@@ -67,3 +67,12 @@
                                        :deck model/full-deck})
     (is (= [:game-started :turn-changed]
            (map :type @sink)))))
+
+(deftest join-game-rejects-more-than-ten-players
+  (let [store (app/create-store)
+        {:keys [game-id]} (app/create-game! store)]
+    (dotimes [_ 10]
+      (app/join-game! store game-id))
+    (is (= {:type :app-error
+            :reason :game-full}
+           (app/join-game! store game-id)))))
