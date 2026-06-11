@@ -36,9 +36,6 @@
 (defn- current-hand [state player]
   (get-in state [:players player :hand]))
 
-(defn- any-playable-card? [state hand]
-  (some #(model/playable-card? state %) hand))
-
 (defn- draw-card-events [state {:keys [player]}]
   (let [hand (current-hand state player)
         drawn-card (first (:draw-pile state))]
@@ -75,7 +72,7 @@
 
 (defn- pass-turn-events [state {:keys [player]}]
   (let [hand (current-hand state player)
-        next (next-player state)
+        next-player-index (next-player state)
         passes-after (inc (:passes-in-row state))]
     (cond
       (not= player (:current-player state))
@@ -92,7 +89,7 @@
 
       :else
       (cond-> [{:type :turn-passed
-                :player next}]
+                :player next-player-index}]
         (= passes-after (count (:players state)))
         (conj {:type :game-blocked})))))
 
