@@ -4,6 +4,8 @@
             [crazy_eights.domain.events :as events]
             [crazy_eights.domain.model :as model]))
 
+(def ^:dynamic *log-simulation* false)
+
 (defn shuffle-deck [deck]
   (vec (shuffle deck)))
 
@@ -56,6 +58,11 @@
              :draw-count (count (:draw-pile next-state))
              :passes-in-row (:passes-in-row next-state)}})
 
+(defn transcript-text [transcript]
+  (with-out-str
+    (doseq [entry transcript]
+      (prn entry))))
+
 (defn run-simulated-game [player-count]
   (loop [state (events/apply-events nil
                                     (commands/decide nil {:type :start-game
@@ -70,22 +77,31 @@
        :steps-left steps-left}
       (let [command (choose-command state)
             result (commands/decide state command)
-            next-state (events/apply-events state result)]
+            next-state (events/apply-events state result)
+            entry (transcript-entry command result next-state)]
+        (when *log-simulation*
+          (prn entry))
         (recur next-state
-               (conj transcript (transcript-entry command result next-state))
+               (conj transcript entry)
                (dec steps-left))))))
+
+(deftest transcript-text-includes-command-and-events
+  (let [text (transcript-text [{:command {:type :play-card}
+                                :events [{:type :card-played}]
+                                :summary {:status :in-progress}}])]
+    (is (.contains text ":command"))
+    (is (.contains text ":events"))
+    (is (.contains text ":card-played"))))
 
 (deftest shuffled-games-reach-an-end-state
   (doseq [player-count [2 3 4]]
     (let [{:keys [state transcript steps-left]} (run-simulated-game player-count)
-          transcript-text (with-out-str
-                            (doseq [entry transcript]
-                              (prn entry)))]
+          log-text (transcript-text transcript)]
       (is (= :finished (:status state))
           (str "simulation did not finish for " player-count
                " players\n"
-               transcript-text))
+               log-text))
       (is (pos? steps-left)
           (str "simulation exhausted step budget for " player-count
                " players\n"
-               transcript-text)))))
+               log-text)))))

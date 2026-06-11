@@ -48,6 +48,12 @@ Run all tests:
 clojure -M:test
 ```
 
+Run the shuffled-game simulation test with move logging:
+
+```bash
+clojure -M:sim-log
+```
+
 Run lint:
 
 ```bash
