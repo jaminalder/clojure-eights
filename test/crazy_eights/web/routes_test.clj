@@ -6,7 +6,7 @@
 (deftest observer-page-renders-html
   (let [handler (routes/app {:simulation-service nil})
         response (handler {:request-method :get
-                           :uri "/"})]
+                           :uri "/observer"})]
     (is (= 200 (:status response)))
     (is (= "text/html; charset=utf-8"
            (get-in response [:headers "Content-Type"])))

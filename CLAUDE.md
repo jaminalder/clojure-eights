@@ -29,9 +29,16 @@ Three layers, dependency direction strictly `web → app → domain`:
   mapping, action submission, app-event emission), `pubsub` (plain-map subscribers),
   `logging` (app-event subscriber, never inside domain/core), `simulation` (runtime
   simulation service with injected delay-fn). No HTTP/JSON here.
-- `src/crazy_eights/web/` — transport only: `routes` (reitit, with injectable seams
-  for tests), `page` (hiccup observer page), `sse` (http-kit SSE channel wiring),
-  `server` (entry point). No game logic here.
+- `src/crazy_eights/web/` — transport only, no game logic. Request pipeline:
+  request → `commands` (parse params into a web command) → app use case → domain
+  events/error → `view_model/game-view` (per-viewer, never exposes other hands) →
+  `views` (hiccup fragments: status, game-board, player-hand). `routes` wires
+  reitit + cookies (per-game `ce-<game-id>` cookie identifies the player) with
+  injectable seams for tests; `sse` pushes re-rendered fragments to every
+  connected viewer on each app event (htmx sse extension swaps them in);
+  `cards` maps cards to codes/SVG paths; `page` is the simulation observer at
+  /observer; `server` is the entry point. Static assets live in
+  `resources/public` (52 public-domain card SVGs + htmx vendored).
 
 State lives in atoms at the app/web boundary only; everything below is values in,
 values out.

@@ -1,10 +1,10 @@
 # crazy-eights
 
-Pure Clojure Crazy Eights domain model.
+Multiplayer Crazy Eights with a pure Clojure domain core.
 
 ## Purpose
 
-This repository starts with the game domain only. The goal is to model Crazy Eights as immutable data and pure functions before adding application or web concerns.
+This repository models Crazy Eights as immutable data and pure functions first, then wraps that domain in a thin in-memory application layer and a server-rendered multiplayer web UI (htmx + SSE).
 
 ## Current Scope
 
@@ -18,7 +18,13 @@ The current implementation includes:
 - invariant checks
 - executable EDN scenarios
 - property, unit, app, web, and simulation tests
-- a minimal web observer page that streams simulation logs over SSE
+- a multiplayer web UI: host a game, share the link, friends join by name,
+  the host deals, and the whole game is played in the browser (eights declare
+  a suit via a picker; draws reshuffle automatically when needed)
+- live updates over SSE: every move re-renders per-player hiccup fragments
+  (status, game-board, player-hand) that htmx swaps into each open browser
+- spectator view for anyone opening the link after the game started
+- a minimal web observer page (`/observer`) that streams simulation logs over SSE
 
 ## How To Read The Project
 
@@ -79,13 +85,19 @@ Run the application-layer simulation test with logging to stdout:
 clojure -M:app-sim-log
 ```
 
-Run the minimal web observer:
+Run the web server:
 
 ```bash
 clojure -M:run-web
 ```
 
-Then open `http://localhost:8080`.
+Then open `http://localhost:8080` to host a multiplayer game, or
+`http://localhost:8080/observer` for the simulation observer. Game state is
+in-memory only: a server restart forgets all games.
+
+The 52 card face SVGs under `resources/public/cards/` are Byron Knoll's
+public-domain vector playing cards; htmx is vendored under
+`resources/public/vendor/`.
 
 For live web verification and debugging in this repo, follow the `web-verification` skill. It covers server startup with stored PID, readiness checks, direct HTTP verification, Playwright interaction, server log inspection, and explicit shutdown.
 

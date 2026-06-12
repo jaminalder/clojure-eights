@@ -12,7 +12,7 @@
         players (vec (repeatedly player-count #(app/join-game! store game-id)))
         _start (app/submit-action! store game-id {:type :start-game
                                                   :player-count player-count
-                                                  :deck (simulation/valid-start-deck player-count)})
+                                                  :deck (app/valid-start-deck player-count)})
         event-log (atom [])]
     (app/subscribe! store game-id :simulation #(swap! event-log conj %))
     (when *log-app-simulation*
@@ -36,11 +36,6 @@
       (is (pos? steps-left)
           (str "app simulation exhausted step budget for " player-count " players\n" event-log)))))
 
-(deftest valid-start-deck-rejects-invalid-player-count
-  (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                        #"invalid player-count"
-                        (simulation/valid-start-deck 11))))
-
 (deftest app-simulation-logger-prints-events
   (let [output (with-out-str
                  (let [store (app/create-store)
@@ -50,6 +45,6 @@
                    (app/join-game! store game-id)
                    (app/submit-action! store game-id {:type :start-game
                                                       :player-count 2
-                                                      :deck (simulation/valid-start-deck 2)})))]
+                                                      :deck (app/valid-start-deck 2)})))]
     (is (.contains output ":game-started"))
     (is (.contains output ":turn-changed"))))

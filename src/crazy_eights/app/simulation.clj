@@ -2,7 +2,6 @@
   (:require [crazy_eights.app.core :as app]
             [crazy_eights.app.logging :as logging]
             [crazy_eights.app.pubsub :as pubsub]
-            [crazy_eights.domain.commands :as commands]
             [crazy_eights.domain.model :as model]))
 
 (defn create-service [{:keys [delay-fn]}]
@@ -29,23 +28,6 @@
 (defn- emit! [service simulation-id event]
   (let [subscribers (get-in @service [:simulations simulation-id :subscribers] {})]
     (pubsub/publish subscribers event)))
-
-(defn shuffle-deck [deck]
-  (vec (shuffle deck)))
-
-(defn valid-start-deck [player-count]
-  (if (<= 2 player-count model/max-player-count)
-    (loop []
-      (let [deck (shuffle-deck model/full-deck)
-            result (commands/decide nil {:type :start-game
-                                         :player-count player-count
-                                         :deck deck})]
-        (if (= :domain-error (:type result))
-          (recur)
-          deck)))
-    (throw (ex-info "invalid player-count for single deck"
-                    {:player-count player-count
-                     :max-player-count model/max-player-count}))))
 
 (defn playable-card [state player]
   (first (filter #(model/playable-card? state %)
@@ -113,7 +95,7 @@
     (app/subscribe! store game-id :simulation-logger #(log-event service simulation-id %))
     (app/submit-action! store game-id {:type :start-game
                                        :player-count player-count
-                                       :deck (valid-start-deck player-count)})
+                                       :deck (app/valid-start-deck player-count)})
     (loop [steps-left 500]
       (let [state (:state (app/get-game store game-id))]
         (if (or (= :finished (:status state)) (zero? steps-left))

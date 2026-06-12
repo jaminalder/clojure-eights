@@ -1,6 +1,7 @@
 (ns crazy_eights.web.sse-test
   (:require [clojure.string :as str]
-            [clojure.test :refer [deftest is]]
+            [clojure.test :refer [deftest is testing]]
+            [crazy_eights.app.core :as app]
             [crazy_eights.app.simulation :as simulation]
             [crazy_eights.web.sse :as sse]
             [org.httpkit.server :as http]))
@@ -42,3 +43,28 @@
       (is (seq log-frames))
       (is (every? #(str/starts-with? % "event: log\ndata: ") log-frames))
       (is (some #(str/includes? % "game finished") log-frames)))))
+
+(deftest game-on-open-sends-fragments-now-and-on-app-events
+  (let [store (app/create-store)
+        {:keys [game-id]} (app/create-game! store)
+        _p1 (app/join-game! store game-id "anna")
+        sent (atom [])
+        channel (recording-channel sent)
+        render (fn [] {:status "<p>s</p>"
+                       :game-board "<div>b</div>"
+                       :player-hand "<div>h</div>"})]
+    (sse/game-on-open store game-id render channel)
+    (testing "open response plus an immediate fragment frame"
+      (let [[open frame] @sent]
+        (is (= 200 (:status open)))
+        (is (str/includes? frame "event: status\ndata: <p>s</p>"))
+        (is (str/includes? frame "event: game-board\ndata: <div>b</div>"))
+        (is (str/includes? frame "event: player-hand\ndata: <div>h</div>"))))
+    (testing "app events push fresh fragments"
+      (let [frames-before (count @sent)]
+        (app/join-game! store game-id "ben")
+        (is (= (inc frames-before) (count @sent)))))
+    (testing "fragment frames never contain stray newlines in data"
+      (is (str/includes?
+           (sse/fragment-frames {:status "multi\nline"})
+           "data: multiline")))))
