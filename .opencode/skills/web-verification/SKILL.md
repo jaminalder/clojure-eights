@@ -44,6 +44,14 @@ lsof -i :8080
 
 Do not open the browser until the server is actually listening.
 
+Also verify HTTP readiness explicitly, not just the socket:
+
+```bash
+curl -i http://localhost:8080/
+```
+
+If the port is listening but the first browser navigation still races or fails, retry only after the HTTP probe succeeds.
+
 ### 3. Verify HTTP Behavior Directly First
 
 Before debugging the browser, hit the backend endpoints with `curl`.

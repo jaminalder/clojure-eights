@@ -9,7 +9,8 @@
     (is (= 200 (:status response)))
     (is (= "text/html; charset=utf-8"
            (get-in response [:headers "Content-Type"])))
-    (is (.contains (:body response) "start simulation"))))
+    (is (.contains (:body response) "start simulation"))
+    (is (.contains (:body response) "data['simulation-id']"))))
 
 (deftest start-simulation-validates-player-count
   (let [handler (routes/app {:simulation-service nil

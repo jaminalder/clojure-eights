@@ -42,7 +42,7 @@
         "    const data = await response.json();\n"
         "    if (!response.ok) { status.textContent = 'error'; log.textContent = data.error || 'failed to start simulation'; return; }\n"
         "    status.textContent = 'running';\n"
-        "    source = new EventSource(`/simulations/${data.simulation-id}/events`);\n"
+        "    source = new EventSource(`/simulations/${data['simulation-id']}/events`);\n"
         "    source.addEventListener('log', (e) => { const msg = JSON.parse(e.data); log.textContent += msg.message + '\\n'; });\n"
         "    source.onerror = () => { status.textContent = 'stream closed'; log.textContent += '[stream closed or failed]\\n'; };\n"
         "  } catch (error) {\n"

@@ -123,17 +123,19 @@
               (recur (dec steps-left)))))))))
 
 (defn sse-response [service simulation-id request]
-  (http/as-channel
-   request
-   {:on-open (fn [channel]
-               (http/send! channel "event: open\ndata: {\"status\":\"connected\"}\n\n" false)
-               (subscribe! service simulation-id channel
-                           (fn [event]
-                             (http/send! channel
-                                         (str "event: log\n"
-                                              "data: "
-                                              (json/write-str {:message (:message event)})
-                                              "\n\n")
-                                         false))))
-    :on-close (fn [channel _]
-                (unsubscribe! service simulation-id channel))}) )
+  (http/with-channel request [channel]
+    (http/on-close channel (fn [_] (unsubscribe! service simulation-id channel)))
+    (http/send! channel {:status 200
+                         :headers {"Content-Type" "text/event-stream"
+                                   "Cache-Control" "no-cache"
+                                   "Connection" "keep-alive"}
+                         :body "event: open\ndata: {\"status\":\"connected\"}\n\n"}
+                false)
+    (subscribe! service simulation-id channel
+                (fn [event]
+                  (http/send! channel
+                              (str "event: log\n"
+                                   "data: "
+                                   (json/write-str {:message (:message event)})
+                                   "\n\n")
+                              false)))))

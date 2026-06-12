@@ -1,4 +1,5 @@
-{:lint-as {clojure.test.check.clojure-test/defspec clojure.test/deftest}
+{:lint-as {clojure.test.check.clojure-test/defspec clojure.test/deftest
+           org.httpkit.server/with-channel clojure.core/let}
  :linters
  {:non-idiomatic-name {:level :off}
   :underscore-in-namespace {:level :off}
