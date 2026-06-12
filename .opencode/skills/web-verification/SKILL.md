@@ -74,6 +74,13 @@ playwright-cli snapshot
 
 Use snapshot references when possible. Do not assume text-based selectors will always work.
 
+If snapshot-ref clicking is flaky in the current environment, do not stop there. Fall back to a two-track verification:
+
+- verify backend behavior with direct HTTP requests first
+- verify browser state changes (status text, DOM updates, console, requests) separately
+
+Do not conclude the page is broken just because a specific `playwright-cli click <ref>` invocation fails. Distinguish tool interaction issues from application issues.
+
 ### 5. Inspect Browser Console And Requests
 
 If the page looks fine but nothing happens:
@@ -88,6 +95,8 @@ Typical signal patterns:
 - no POST means client-side event handling failed
 - POST succeeds but no SSE means startup/subscription ordering is wrong
 - SSE connects but no messages means simulation or subscriber wiring is wrong
+
+Also check visible browser state changes in the page itself. A minimal observer page should expose status text such as `idle`, `starting`, `running`, `error`, or `stream closed` so browser verification is possible without deep DOM inspection.
 
 ### 6. Inspect Server Log File
 
@@ -114,6 +123,8 @@ Then verify the port is free:
 ```bash
 lsof -i :8080
 ```
+
+If the stored PID no longer exists, do not guess. Re-check the actual listening process with `lsof -i :8080` and stop only the live server process.
 
 ## Required Checks For Web Changes
 
@@ -181,6 +192,7 @@ Prefer logs with:
 
 - do not verify only with unit tests
 - do not rely on guessed browser selectors when snapshot refs are available
+- do not rely on a single flaky browser action as the only verification path
 - do not leave background servers running
 - do not start debugging in Playwright before confirming the server is ready
 - do not debug browser behavior before checking direct HTTP behavior
