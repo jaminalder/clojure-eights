@@ -1,5 +1,6 @@
 (ns crazy_eights.web.routes-test
   (:require [clojure.test :refer [deftest is]]
+            [crazy_eights.app.simulation :as simulation]
             [crazy_eights.web.routes :as routes]))
 
 (deftest observer-page-renders-html
@@ -41,3 +42,16 @@
                            :path-params {:id "sim-1"}})]
     (is (= "sim-1" (first @called)))
     (is (= 200 (:status response)))))
+
+(deftest sse-endpoint-rejects-unknown-simulation
+  (let [service (simulation/create-service {:delay-fn (fn [] nil)})
+        handler (routes/app {:simulation-service service})
+        response (handler {:request-method :get
+                           :uri "/simulations/missing/events"})]
+    (is (= 404 (:status response)))))
+
+(deftest unknown-route-returns-404
+  (let [handler (routes/app {:simulation-service nil})
+        response (handler {:request-method :get
+                           :uri "/favicon.ico"})]
+    (is (= 404 (:status response)))))

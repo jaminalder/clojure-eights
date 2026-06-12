@@ -17,7 +17,8 @@ The current implementation includes:
 - event application
 - invariant checks
 - executable EDN scenarios
-- property, unit, app, and simulation tests
+- property, unit, app, web, and simulation tests
+- a minimal web observer page that streams simulation logs over SSE
 
 ## How To Read The Project
 
@@ -25,8 +26,10 @@ The code is the primary specification.
 
 - domain behavior lives in `src/crazy_eights/domain/`
 - application lifecycle lives in `src/crazy_eights/app/`
+- web transport (routes, observer page, SSE) lives in `src/crazy_eights/web/`
 - tests under `test/crazy_eights/domain/` are the executable spec
 - app tests under `test/crazy_eights/app/` exercise the in-memory shell around the domain
+- web tests under `test/crazy_eights/web/` cover routes and SSE wiring
 - scenario EDN under `resources/domain/scenarios/` is kept only because it is executed by tests
 
 The domain now covers one complete playable game of Crazy Eights without scoring or multi-round match flow.
@@ -35,12 +38,10 @@ The domain now covers one complete playable game of Crazy Eights without scoring
 
 - no database
 - no durable persistence
-- no web server yet
-- no UI yet
 - no Docker yet
 - no runtime state container in the domain
 
-Temporary in-memory application state may exist later outside the domain layer.
+In-memory application and simulation state lives outside the domain layer.
 
 ## Domain Purity
 

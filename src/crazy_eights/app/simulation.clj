@@ -1,10 +1,9 @@
 (ns crazy_eights.app.simulation
-  (:require [clojure.data.json :as json]
-            [crazy_eights.app.core :as app]
+  (:require [crazy_eights.app.core :as app]
             [crazy_eights.app.logging :as logging]
             [crazy_eights.app.pubsub :as pubsub]
-            [crazy_eights.domain.model :as model]
-            [org.httpkit.server :as http]))
+            [crazy_eights.domain.commands :as commands]
+            [crazy_eights.domain.model :as model]))
 
 (defn create-service [{:keys [delay-fn]}]
   (atom {:next-simulation-id 0
@@ -38,16 +37,12 @@
   (if (<= 2 player-count model/max-player-count)
     (loop []
       (let [deck (shuffle-deck model/full-deck)
-            store (app/create-store)
-            {:keys [game-id]} (app/create-game! store)]
-        (dotimes [_ player-count]
-          (app/join-game! store game-id))
-        (let [result (app/submit-action! store game-id {:type :start-game
-                                                        :player-count player-count
-                                                        :deck deck})]
-          (if (= :domain-error (:type (:events result)))
-            (recur)
-            deck))))
+            result (commands/decide nil {:type :start-game
+                                         :player-count player-count
+                                         :deck deck})]
+        (if (= :domain-error (:type result))
+          (recur)
+          deck)))
     (throw (ex-info "invalid player-count for single deck"
                     {:player-count player-count
                      :max-player-count model/max-player-count}))))
@@ -88,7 +83,7 @@
                    store (app/create-store)
                    {:keys [game-id]} (app/create-game! store)
                    players (vec (repeatedly player-count #(app/join-game! store game-id)))
-                    sim {:simulation-id id
+                   sim {:simulation-id id
                         :game-id game-id
                         :player-count player-count
                         :store store
@@ -97,45 +92,35 @@
                         :started? false
                         :subscribers {}}]
                (reset! simulation-id id)
-                (-> state
-                    (update :next-simulation-id inc)
-                    (assoc-in [:simulations id] sim)))))
+               (-> state
+                   (update :next-simulation-id inc)
+                   (assoc-in [:simulations id] sim)))))
     {:simulation-id @simulation-id}))
 
-(defn run-to-completion! [service simulation-id]
-  (let [{:keys [store game-id player-count players started?]} (get-simulation service simulation-id)
-        deck (valid-start-deck player-count)]
-    (when-not started?
-      (swap! service assoc-in [:simulations simulation-id :started?] true)
-      (app/subscribe! store game-id :simulation-logger #(log-event service simulation-id %))
-      (app/submit-action! store game-id {:type :start-game
-                                         :player-count player-count
-                                         :deck deck})
-      (loop [steps-left 500]
-        (let [state (:state (app/get-game store game-id))]
-          (if (or (= :finished (:status state)) (zero? steps-left))
-            (swap! service assoc-in [:simulations simulation-id :status] (:status state))
-            (let [player-index (:current-player state)
-                  player-id (:player-id (nth players player-index))
-                  action (choose-player-action state)]
-              ((:delay-fn @service))
-              (app/submit-player-action! store game-id player-id action)
-              (recur (dec steps-left)))))))))
+(defn- claim-run! [service simulation-id]
+  (let [[before _] (swap-vals! service
+                               (fn [state]
+                                 (cond-> state
+                                   (get-in state [:simulations simulation-id])
+                                   (update-in [:simulations simulation-id]
+                                              assoc :started? true :status :running))))
+        sim (get-in before [:simulations simulation-id])]
+    (when-not (:started? sim)
+      sim)))
 
-(defn sse-response [service simulation-id request]
-  (http/with-channel request [channel]
-    (http/on-close channel (fn [_] (unsubscribe! service simulation-id channel)))
-    (http/send! channel {:status 200
-                         :headers {"Content-Type" "text/event-stream"
-                                   "Cache-Control" "no-cache"
-                                   "Connection" "keep-alive"}
-                         :body "event: open\ndata: {\"status\":\"connected\"}\n\n"}
-                false)
-    (subscribe! service simulation-id channel
-                (fn [event]
-                  (http/send! channel
-                              (str "event: log\n"
-                                   "data: "
-                                   (json/write-str {:message (:message event)})
-                                   "\n\n")
-                              false)))))
+(defn run-to-completion! [service simulation-id]
+  (when-let [{:keys [store game-id player-count players]} (claim-run! service simulation-id)]
+    (app/subscribe! store game-id :simulation-logger #(log-event service simulation-id %))
+    (app/submit-action! store game-id {:type :start-game
+                                       :player-count player-count
+                                       :deck (valid-start-deck player-count)})
+    (loop [steps-left 500]
+      (let [state (:state (app/get-game store game-id))]
+        (if (or (= :finished (:status state)) (zero? steps-left))
+          (swap! service assoc-in [:simulations simulation-id :status] (:status state))
+          (let [player-index (:current-player state)
+                player-id (:player-id (nth players player-index))
+                action (choose-player-action state)]
+            ((:delay-fn @service))
+            (app/submit-player-action! store game-id player-id action)
+            (recur (dec steps-left))))))))

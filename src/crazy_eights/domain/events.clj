@@ -1,4 +1,5 @@
-(ns crazy_eights.domain.events)
+(ns crazy_eights.domain.events
+  (:require [crazy_eights.domain.model :as model]))
 
 (defmulti apply-event (fn [_state event] (:type event)))
 
@@ -7,10 +8,7 @@
 
 (defmethod apply-event :card-played [state {:keys [player card]}]
   (-> state
-      (update-in [:players player :hand]
-                 (fn [hand]
-                   (let [[before after] (split-with #(not= % card) hand)]
-                     (vec (concat before (rest after))))))
+      (update-in [:players player :hand] model/remove-card card)
       (update :discard-pile conj card)
       (assoc :active-suit (:suit card)
              :passes-in-row 0)))

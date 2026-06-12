@@ -1,5 +1,6 @@
 (ns crazy_eights.web.page
-  (:require [hiccup.util :as u]
+  (:require [crazy_eights.domain.model :as model]
+            [hiccup.util :as u]
             [hiccup2.core :as h]))
 
 (defn observer-page []
@@ -8,6 +9,7 @@
     [:html
      [:head
       [:meta {:charset "utf-8"}]
+      [:link {:rel "icon" :href "data:,"}]
       [:title "Crazy Eights Simulation Observer"]]
      [:body
       [:h1 "Crazy Eights Simulation Observer"]
@@ -17,7 +19,7 @@
                 :name "player-count"
                 :type "number"
                 :min 2
-                :max 10
+                :max model/max-player-count
                 :value 4}]
        [:button {:id "start-simulation"
                  :type "button"}

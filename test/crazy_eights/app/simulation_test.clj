@@ -2,53 +2,9 @@
   (:require [clojure.test :refer [deftest is]]
             [crazy_eights.app.core :as app]
             [crazy_eights.app.logging :as logging]
-            [crazy_eights.domain.model :as model]))
+            [crazy_eights.app.simulation :as simulation]))
 
 (def ^:dynamic *log-app-simulation* false)
-
-(defn shuffle-deck [deck]
-  (vec (shuffle deck)))
-
-(defn valid-start-deck [player-count]
-  (if (<= 2 player-count model/max-player-count)
-    (loop []
-      (let [deck (shuffle-deck model/full-deck)
-            store (app/create-store)
-            {:keys [game-id]} (app/create-game! store)]
-        (dotimes [_ player-count]
-          (app/join-game! store game-id))
-        (let [result (app/submit-action! store game-id {:type :start-game
-                                                        :player-count player-count
-                                                        :deck deck})]
-          (if (= :domain-error (:type (:events result)))
-            (recur)
-            deck))))
-    (throw (ex-info "invalid player-count for single deck"
-                    {:player-count player-count
-                     :max-player-count model/max-player-count}))))
-
-(defn playable-card [state player]
-  (first (filter #(model/playable-card? state %)
-                 (get-in state [:players player :hand]))))
-
-(defn choose-player-action [state]
-  (let [player (:current-player state)]
-    (cond
-      (playable-card state player)
-      (let [card (playable-card state player)]
-        (cond-> {:type :play-card :card card}
-          (model/requires-declared-suit? card)
-          (assoc :declared-suit :spades)))
-
-      (seq (:draw-pile state))
-      {:type :draw-card}
-
-      (model/reshuffleable? state)
-      {:type :reshuffle-draw-pile
-       :cards (model/reshuffle-cards (:discard-pile state))}
-
-      :else
-      {:type :pass-turn})))
 
 (defn run-app-simulated-game [player-count]
   (let [store (app/create-store)
@@ -56,7 +12,7 @@
         players (vec (repeatedly player-count #(app/join-game! store game-id)))
         _start (app/submit-action! store game-id {:type :start-game
                                                   :player-count player-count
-                                                  :deck (valid-start-deck player-count)})
+                                                  :deck (simulation/valid-start-deck player-count)})
         event-log (atom [])]
     (app/subscribe! store game-id :simulation #(swap! event-log conj %))
     (when *log-app-simulation*
@@ -67,7 +23,7 @@
           {:state state :events @event-log :steps-left steps-left :players players}
           (let [player-index (:current-player state)
                 player-id (:player-id (nth players player-index))
-                action (choose-player-action state)]
+                action (simulation/choose-player-action state)]
             (app/submit-player-action! store game-id player-id action)
             (recur (dec steps-left))))))))
 
@@ -83,7 +39,7 @@
 (deftest valid-start-deck-rejects-invalid-player-count
   (is (thrown-with-msg? clojure.lang.ExceptionInfo
                         #"invalid player-count"
-                        (valid-start-deck 11))))
+                        (simulation/valid-start-deck 11))))
 
 (deftest app-simulation-logger-prints-events
   (let [output (with-out-str
@@ -94,6 +50,6 @@
                    (app/join-game! store game-id)
                    (app/submit-action! store game-id {:type :start-game
                                                       :player-count 2
-                                                      :deck (valid-start-deck 2)})))]
+                                                      :deck (simulation/valid-start-deck 2)})))]
     (is (.contains output ":game-started"))
     (is (.contains output ":turn-changed"))))

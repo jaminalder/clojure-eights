@@ -28,4 +28,10 @@
       (is (model/requires-declared-suit? wild-eight))
       (is (not (model/requires-declared-suit? matching-rank)))
       (is (model/valid-declared-suit? wild-eight :spades))
-      (is (not (model/valid-declared-suit? wild-eight nil))))))
+      (is (not (model/valid-declared-suit? wild-eight nil))))
+    (testing "remove-card removes only the first occurrence"
+      (let [doubled [matching-rank wild-eight matching-rank]]
+        (is (= [wild-eight matching-rank]
+               (model/remove-card doubled matching-rank)))
+        (is (= [matching-rank wild-eight matching-rank]
+               (model/remove-card doubled wrong-card)))))))

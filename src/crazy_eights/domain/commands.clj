@@ -106,8 +106,7 @@
   (if-let [error (reject-if-finished state)]
     error
     (let [hand (current-hand state player)
-          [before after] (split-with #(not= % card) hand)
-          remaining-hand (vec (concat before (rest after)))]
+          remaining-hand (model/remove-card hand card)]
       (cond
         (not= player (:current-player state))
         (domain-error :not-current-player)

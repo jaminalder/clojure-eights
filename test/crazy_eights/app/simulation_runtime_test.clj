@@ -16,4 +16,19 @@
     (simulation/subscribe! service simulation-id :test #(swap! sink conj %))
     (simulation/run-to-completion! service simulation-id)
     (is (seq @sink))
-    (is (every? #(= :log (:type %)) @sink))))
+    (is (every? #(= :log (:type %)) @sink))
+    (is (= :finished (:status (simulation/get-simulation service simulation-id))))))
+
+(deftest run-to-completion-runs-only-once
+  (let [service (simulation/create-service {:delay-fn (fn [] nil)})
+        sink (atom [])
+        {:keys [simulation-id]} (simulation/start! service 2)]
+    (simulation/subscribe! service simulation-id :test #(swap! sink conj %))
+    (simulation/run-to-completion! service simulation-id)
+    (let [events-after-first-run (count @sink)]
+      (simulation/run-to-completion! service simulation-id)
+      (is (= events-after-first-run (count @sink))))))
+
+(deftest run-to-completion-ignores-unknown-simulation
+  (let [service (simulation/create-service {:delay-fn (fn [] nil)})]
+    (is (nil? (simulation/run-to-completion! service "missing")))))

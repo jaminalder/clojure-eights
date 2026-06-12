@@ -35,6 +35,10 @@
 (defn card-in-hand? [hand candidate-card]
   (boolean (some #(= candidate-card %) hand)))
 
+(defn remove-card [hand candidate-card]
+  (let [[before after] (split-with #(not= % candidate-card) hand)]
+    (vec (concat before (rest after)))))
+
 (defn requires-declared-suit? [candidate-card]
   (= :eight (:rank candidate-card)))
 
