@@ -23,3 +23,7 @@
 - This repo is domain-first.
 - Keep the domain pure: no HTTP, database, filesystem, logging, config, time, randomness, or runtime-mutable concerns in domain namespaces.
 - Scenario EDN is kept only because tests execute it.
+
+## Web Verification
+
+- When working on live web behavior, browser interaction, SSE, or request/response flow in this repo, use the repo-local `web-verification` skill before claiming the web change works.

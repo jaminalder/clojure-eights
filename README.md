@@ -86,6 +86,8 @@ clojure -M:run-web
 
 Then open `http://localhost:8080`.
 
+For live web verification and debugging in this repo, follow the `web-verification` skill. It covers server startup with stored PID, readiness checks, direct HTTP verification, Playwright interaction, server log inspection, and explicit shutdown.
+
 Application logging is implemented as an app-event subscriber in `crazy_eights.app.logging`, not inside the domain or app core.
 
 Run lint:

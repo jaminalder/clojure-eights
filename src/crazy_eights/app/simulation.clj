@@ -88,12 +88,13 @@
                    store (app/create-store)
                    {:keys [game-id]} (app/create-game! store)
                    players (vec (repeatedly player-count #(app/join-game! store game-id)))
-                   sim {:simulation-id id
+                    sim {:simulation-id id
                         :game-id game-id
                         :player-count player-count
                         :store store
                         :players players
                         :status :ready
+                        :started? false
                         :subscribers {}}]
                (reset! simulation-id id)
                 (-> state
@@ -102,22 +103,24 @@
     {:simulation-id @simulation-id}))
 
 (defn run-to-completion! [service simulation-id]
-  (let [{:keys [store game-id player-count players]} (get-simulation service simulation-id)
+  (let [{:keys [store game-id player-count players started?]} (get-simulation service simulation-id)
         deck (valid-start-deck player-count)]
-    (app/subscribe! store game-id :simulation-logger #(log-event service simulation-id %))
-    (app/submit-action! store game-id {:type :start-game
-                                       :player-count player-count
-                                       :deck deck})
-    (loop [steps-left 500]
-      (let [state (:state (app/get-game store game-id))]
-        (if (or (= :finished (:status state)) (zero? steps-left))
-          (swap! service assoc-in [:simulations simulation-id :status] (:status state))
-          (let [player-index (:current-player state)
-                player-id (:player-id (nth players player-index))
-                action (choose-player-action state)]
-            ((:delay-fn @service))
-            (app/submit-player-action! store game-id player-id action)
-            (recur (dec steps-left))))))))
+    (when-not started?
+      (swap! service assoc-in [:simulations simulation-id :started?] true)
+      (app/subscribe! store game-id :simulation-logger #(log-event service simulation-id %))
+      (app/submit-action! store game-id {:type :start-game
+                                         :player-count player-count
+                                         :deck deck})
+      (loop [steps-left 500]
+        (let [state (:state (app/get-game store game-id))]
+          (if (or (= :finished (:status state)) (zero? steps-left))
+            (swap! service assoc-in [:simulations simulation-id :status] (:status state))
+            (let [player-index (:current-player state)
+                  player-id (:player-id (nth players player-index))
+                  action (choose-player-action state)]
+              ((:delay-fn @service))
+              (app/submit-player-action! store game-id player-id action)
+              (recur (dec steps-left)))))))))
 
 (defn sse-response [service simulation-id request]
   (http/as-channel
