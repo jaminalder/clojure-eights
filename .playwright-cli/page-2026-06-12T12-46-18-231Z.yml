@@ -1,7 +1,0 @@
-- generic [active] [ref=e1]:
-  - heading "Crazy Eights Simulation Observer" [level=1] [ref=e2]
-  - generic [ref=e3]:
-    - text: Players
-    - spinbutton "Players" [ref=e4]: "4"
-    - button "start simulation" [ref=e5]
-  - paragraph [ref=e6]: idle
