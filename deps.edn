@@ -2,7 +2,12 @@
  :mvn/repos {"artifactory.swisscom.com" {:url "https://repo.maven.apache.org/maven2/"}
              "artifactory-oce" {:url "https://repo.clojars.org/"}}
  :deps {org.clojure/clojure {:mvn/version "1.12.0"}
-        org.clojure/test.check {:mvn/version "1.1.1"}}
+        org.clojure/test.check {:mvn/version "1.1.1"}
+        ring/ring-core {:mvn/version "1.13.0"}
+        metosin/reitit-ring {:mvn/version "0.7.2"}
+        hiccup/hiccup {:mvn/version "2.0.0-RC3"}
+        http-kit/http-kit {:mvn/version "2.8.0"}
+        org.clojure/data.json {:mvn/version "2.5.1"}}
  :aliases
  {:test {:extra-paths ["test"]
          :extra-deps {lambdaisland/kaocha {:mvn/version "1.91.1392"}}
@@ -14,4 +19,5 @@
                 :extra-deps {lambdaisland/kaocha {:mvn/version "1.91.1392"}}
                 :main-opts ["-m" "crazy_eights.app.simulation-runner"]}
   :lint {:extra-deps {clj-kondo/clj-kondo {:mvn/version "2024.08.29"}}
-         :main-opts ["-m" "clj-kondo.main" "--lint" "src" "test"]}}}
+         :main-opts ["-m" "clj-kondo.main" "--lint" "src" "test"]}
+  :run-web {:main-opts ["-m" "crazy_eights.web.server"]}}}

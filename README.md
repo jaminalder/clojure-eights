@@ -78,6 +78,14 @@ Run the application-layer simulation test with logging to stdout:
 clojure -M:app-sim-log
 ```
 
+Run the minimal web observer:
+
+```bash
+clojure -M:run-web
+```
+
+Then open `http://localhost:8080`.
+
 Application logging is implemented as an app-event subscriber in `crazy_eights.app.logging`, not inside the domain or app core.
 
 Run lint:
