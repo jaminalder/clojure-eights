@@ -2,6 +2,7 @@
   "Hiccup rendering of view models. Pure: view model in, HTML string out.
   Fragment functions return single-line HTML so they can travel as SSE data."
   (:require [crazy_eights.web.cards :as cards]
+            [crazy_eights.web.paths :as paths]
             [hiccup2.core :as h]))
 
 (defn- html [content]
@@ -52,7 +53,7 @@
     (for [player players]
       [:li (:name player) (when (:host? player) [:span.host-mark "host"])])]
    (when can-start?
-     [:button {:hx-post (str "/games/" game-id "/start")
+     [:button {:hx-post (paths/start game-id)
                :hx-target "#status"}
       "start game"])
    [:p.share
@@ -100,7 +101,7 @@
 (defn- join-form [{:keys [game-id]}]
   [:div.panel
    [:h2 "take a seat"]
-   [:form {:action (str "/games/" game-id "/join") :method "post"}
+   [:form {:action (paths/join game-id) :method "post"}
     [:label {:for "name"} "your name"]
     [:input {:type "text" :id "name" :name "name" :maxlength 24 :autofocus true}]
     [:button {:type "submit"} "sit down"]]])
@@ -109,12 +110,12 @@
   (let [image [:img {:src (cards/card->image (cards/code->card code)) :alt code}]]
     (cond
       (and playable? eight?)
-      [:button.card-btn.playable {:hx-get (str "/games/" game-id "/hand?declare=" code)
+      [:button.card-btn.playable {:hx-get (str (paths/hand game-id) "?declare=" code)
                                   :hx-target "#player-hand"}
        image]
 
       playable?
-      [:button.card-btn.playable {:hx-post (str "/games/" game-id "/play?card=" code)
+      [:button.card-btn.playable {:hx-post (str (paths/play game-id) "?card=" code)
                                   :hx-target "#status"}
        image]
 
@@ -127,11 +128,11 @@
    [:div.suits
     (for [suit [:clubs :diamonds :hearts :spades]]
       [:button.suit {:class (cards/suit-color suit)
-                     :hx-post (str "/games/" game-id "/play?card=" declare-code
+                     :hx-post (str (paths/play game-id) "?card=" declare-code
                                    "&declared-suit=" (name suit))
                      :hx-target "#status"}
        (cards/suit-glyph suit)])]
-   [:button {:hx-get (str "/games/" game-id "/hand")
+   [:button {:hx-get (paths/hand game-id)
              :hx-target "#player-hand"}
     "back"]])
 
@@ -144,11 +145,11 @@
    (when (or can-draw? can-pass?)
      [:div.actions
       (when can-draw?
-        [:button {:hx-post (str "/games/" game-id "/draw")
+        [:button {:hx-post (paths/draw game-id)
                   :hx-target "#status"}
          (if (zero? draw-count) "reshuffle and draw" "draw a card")])
       (when can-pass?
-        [:button {:hx-post (str "/games/" game-id "/pass")
+        [:button {:hx-post (paths/pass game-id)
                   :hx-target "#status"}
          "pass"])])])
 
@@ -199,7 +200,7 @@
 (defn game-page [vm]
   (layout "Crazy Eights"
           [:div {:hx-ext "sse"
-                 :sse-connect (str "/games/" (:game-id vm) "/events")}
+                 :sse-connect (paths/events (:game-id vm))}
            [:div {:id "status" :sse-swap "status"}
             (h/raw (status-html vm))]
            [:div {:id "game-board" :sse-swap "game-board"}

@@ -18,7 +18,7 @@
    :game-id game-id
    :name (clean-name params)})
 
-(defn start-game-command [game-id player-id]
+(defn start-game-command [game-id player-id _params]
   (if player-id
     {:type :start-game :game-id game-id :player-id player-id}
     {:error :not-a-player}))
@@ -37,12 +37,12 @@
              :card card
              :declared-suit declared-suit})))
 
-(defn draw-card-command [game-id player-id]
+(defn draw-card-command [game-id player-id _params]
   (if player-id
     {:type :draw-card :game-id game-id :player-id player-id}
     {:error :not-a-player}))
 
-(defn pass-turn-command [game-id player-id]
+(defn pass-turn-command [game-id player-id _params]
   (if player-id
     {:type :pass-turn :game-id game-id :player-id player-id}
     {:error :not-a-player}))

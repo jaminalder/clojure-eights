@@ -17,9 +17,9 @@
 
 (deftest start-game-command-requires-a-player
   (is (= {:type :start-game :game-id "game-0" :player-id "game-0-player-0"}
-         (commands/start-game-command "game-0" "game-0-player-0")))
+         (commands/start-game-command "game-0" "game-0-player-0" {})))
   (is (= {:error :not-a-player}
-         (commands/start-game-command "game-0" nil))))
+         (commands/start-game-command "game-0" nil {}))))
 
 (deftest play-card-command-parses-card-and-suit
   (testing "plain card"
@@ -48,8 +48,8 @@
 
 (deftest draw-and-pass-commands
   (is (= {:type :draw-card :game-id "g" :player-id "p"}
-         (commands/draw-card-command "g" "p")))
+         (commands/draw-card-command "g" "p" {})))
   (is (= {:type :pass-turn :game-id "g" :player-id "p"}
-         (commands/pass-turn-command "g" "p")))
-  (is (= {:error :not-a-player} (commands/draw-card-command "g" nil)))
-  (is (= {:error :not-a-player} (commands/pass-turn-command "g" nil))))
+         (commands/pass-turn-command "g" "p" {})))
+  (is (= {:error :not-a-player} (commands/draw-card-command "g" nil {})))
+  (is (= {:error :not-a-player} (commands/pass-turn-command "g" nil {}))))
