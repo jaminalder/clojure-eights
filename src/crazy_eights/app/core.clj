@@ -8,6 +8,18 @@
   (atom {:next-game-id 0
          :games {}}))
 
+(defn swap-result!
+  "Apply (f state) -> [next-state result]; commit next-state, return result.
+  Lets a use case stay a pure state->[state result] fn instead of smuggling a
+  value out of swap! through an atom."
+  [a f]
+  (let [out (volatile! nil)]
+    (swap! a (fn [state]
+               (let [[next-state result] (f state)]
+                 (vreset! out result)
+                 next-state)))
+    @out))
+
 (defn- next-game-id [store-state]
   (str "game-" (:next-game-id store-state)))
 
@@ -19,49 +31,44 @@
     (pubsub/publish subscribers event)))
 
 (defn create-game! [store]
-  (let [created (atom nil)]
-    (swap! store
-           (fn [state]
-             (let [game-id (next-game-id state)
-                   game {:game-id game-id
-                         :state nil
-                         :players {}
-                         :subscribers {}}]
-               (reset! created {:game-id game-id})
-               (-> state
-                   (update :next-game-id inc)
-                   (assoc-in [:games game-id] game)))))
-    @created))
+  (swap-result! store
+                (fn [state]
+                  (let [game-id (next-game-id state)
+                        game {:game-id game-id
+                              :state nil
+                              :players {}
+                              :subscribers {}}]
+                    [(-> state
+                         (update :next-game-id inc)
+                         (assoc-in [:games game-id] game))
+                     {:game-id game-id}]))))
 
 (defn join-game!
   ([store game-id]
    (join-game! store game-id nil))
   ([store game-id player-name]
-   (let [joined (atom nil)]
-     (swap! store
-            (fn [state]
-              (let [game (get-in state [:games game-id])
-                    seat (count (:players game))]
-                (cond
-                  (some? (:state game))
-                  (do (reset! joined {:error :game-already-started})
-                      state)
+   (let [result (swap-result! store
+                              (fn [state]
+                                (let [game (get-in state [:games game-id])
+                                      seat (count (:players game))]
+                                  (cond
+                                    (some? (:state game))
+                                    [state {:error :game-already-started}]
 
-                  (<= model/max-player-count seat)
-                  (do (reset! joined {:error :game-full})
-                      state)
+                                    (<= model/max-player-count seat)
+                                    [state {:error :game-full}]
 
-                  :else
-                  (let [player-id (next-player-id game)
-                        seat-name (or player-name (str "player " (inc seat)))]
-                    (reset! joined {:player-id player-id :seat seat :name seat-name})
-                    (assoc-in state [:games game-id :players player-id]
-                              {:seat seat :name seat-name}))))))
-     (when (:player-id @joined)
-       (emit! store game-id (assoc @joined
+                                    :else
+                                    (let [player-id (next-player-id game)
+                                          seat-name (or player-name (str "player " (inc seat)))]
+                                      [(assoc-in state [:games game-id :players player-id]
+                                                 {:seat seat :name seat-name})
+                                       {:player-id player-id :seat seat :name seat-name}])))))]
+     (when (:player-id result)
+       (emit! store game-id (assoc result
                                    :type :player-joined
                                    :game-id game-id)))
-     @joined)))
+     result)))
 
 (defn get-game [store game-id]
   (get-in @store [:games game-id]))
@@ -79,38 +86,37 @@
          #(pubsub/unsubscribe (or % {}) subscriber-id))
   subscriber-id)
 
+(defn- action-events
+  "App events to emit after a successful command, given the command and the
+  resulting game state. The caller adds :game-id at emit time."
+  [command next-state events]
+  (cond-> [{:type (if (= :start-game (:type command)) :game-started :move-made)
+            :command command
+            :events events
+            :state next-state}
+           {:type :turn-changed
+            :current-player (:current-player next-state)
+            :state next-state}]
+    (= :finished (:status next-state))
+    (conj {:type :game-finished
+           :winner (:winner next-state)
+           :state next-state})))
+
 (defn submit-action! [store game-id command]
-  (let [result (atom nil)]
-    (swap! store
-           (fn [state]
-             (let [game (get-in state [:games game-id])
-                   current-state (:state game)
-                   decision (commands/decide current-state command)]
-               (reset! result decision)
-               (if (= :domain-error (:type decision))
-                 state
-                 (assoc-in state
-                           [:games game-id :state]
-                           (events/apply-events current-state decision))))))
-    (when (vector? @result)
+  (let [decision (swap-result! store
+                               (fn [state]
+                                 (let [current-state (get-in state [:games game-id :state])
+                                       decision (commands/decide current-state command)]
+                                   (if (= :domain-error (:type decision))
+                                     [state decision]
+                                     [(assoc-in state [:games game-id :state]
+                                                (events/apply-events current-state decision))
+                                      decision]))))]
+    (when (vector? decision)
       (let [next-state (get-in @store [:games game-id :state])]
-        (emit! store game-id {:type (if (= :start-game (:type command))
-                                      :game-started
-                                      :move-made)
-                            :game-id game-id
-                            :command command
-                            :events @result
-                            :state next-state})
-        (emit! store game-id {:type :turn-changed
-                              :game-id game-id
-                              :current-player (:current-player next-state)
-                              :state next-state})
-        (when (= :finished (:status next-state))
-          (emit! store game-id {:type :game-finished
-                                :game-id game-id
-                                :winner (:winner next-state)
-                                :state next-state}))))
-    {:events @result}))
+        (run! #(emit! store game-id (assoc % :game-id game-id))
+              (action-events command next-state decision))))
+    {:events decision}))
 
 (defn submit-player-action! [store game-id player-id action]
   (let [seat (get-in @store [:games game-id :players player-id :seat])]

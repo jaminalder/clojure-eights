@@ -223,3 +223,29 @@
                                        :deck model/full-deck})
     (is (= [:game-started :turn-changed]
            (map :type @sink)))))
+
+(deftest swap-result!-commits-state-and-returns-result
+  (let [a (atom {:n 0})
+        result (app/swap-result! a (fn [state]
+                                     [(update state :n inc) {:was (:n state)}]))]
+    (is (= {:n 1} @a))
+    (is (= {:was 0} result))))
+
+(deftest action-events-derives-the-event-stream
+  (let [action-events #'app/action-events]
+    (testing "start-game opens with :game-started then :turn-changed"
+      (is (= [:game-started :turn-changed]
+             (map :type (action-events {:type :start-game}
+                                       {:status :in-progress :current-player 0}
+                                       [{:type :game-started}])))))
+    (testing "other commands report :move-made"
+      (is (= [:move-made :turn-changed]
+             (map :type (action-events {:type :play-card}
+                                       {:status :in-progress :current-player 1}
+                                       [{:type :card-played}])))))
+    (testing "a finished state appends :game-finished with the winner"
+      (let [evs (action-events {:type :play-card}
+                               {:status :finished :winner 2 :current-player 2}
+                               [{:type :card-played}])]
+        (is (= [:move-made :turn-changed :game-finished] (map :type evs)))
+        (is (= 2 (:winner (last evs))))))))

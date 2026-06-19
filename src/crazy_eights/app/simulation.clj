@@ -58,26 +58,24 @@
                                 :app-event app-event}))
 
 (defn start! [service player-count]
-  (let [simulation-id (atom nil)]
-    (swap! service
-           (fn [state]
-             (let [id (next-simulation-id state)
-                   store (app/create-store)
-                   {:keys [game-id]} (app/create-game! store)
-                   players (vec (repeatedly player-count #(app/join-game! store game-id)))
-                   sim {:simulation-id id
-                        :game-id game-id
-                        :player-count player-count
-                        :store store
-                        :players players
-                        :status :ready
-                        :started? false
-                        :subscribers {}}]
-               (reset! simulation-id id)
-               (-> state
-                   (update :next-simulation-id inc)
-                   (assoc-in [:simulations id] sim)))))
-    {:simulation-id @simulation-id}))
+  (app/swap-result! service
+                    (fn [state]
+                      (let [id (next-simulation-id state)
+                            store (app/create-store)
+                            {:keys [game-id]} (app/create-game! store)
+                            players (vec (repeatedly player-count #(app/join-game! store game-id)))
+                            sim {:simulation-id id
+                                 :game-id game-id
+                                 :player-count player-count
+                                 :store store
+                                 :players players
+                                 :status :ready
+                                 :started? false
+                                 :subscribers {}}]
+                        [(-> state
+                             (update :next-simulation-id inc)
+                             (assoc-in [:simulations id] sim))
+                         {:simulation-id id}]))))
 
 (defn- claim-run! [service simulation-id]
   (let [[before _] (swap-vals! service
