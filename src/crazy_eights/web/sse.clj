@@ -1,8 +1,6 @@
 (ns crazy_eights.web.sse
-  (:require [clojure.data.json :as json]
-            [clojure.string :as str]
+  (:require [clojure.string :as str]
             [crazy_eights.app.core :as app]
-            [crazy_eights.app.simulation :as simulation]
             [org.httpkit.server :as http]))
 
 (def ^:private open-response
@@ -11,28 +9,6 @@
              "Cache-Control" "no-cache"
              "Connection" "keep-alive"}
    :body "event: open\ndata: {\"status\":\"connected\"}\n\n"})
-
-;; simulation observer stream
-
-(defn- log-event->frame [event]
-  (str "event: log\n"
-       "data: " (json/write-str {:message (:message event)})
-       "\n\n"))
-
-(defn on-open [service simulation-id run-simulation! channel]
-  (http/send! channel open-response false)
-  (simulation/subscribe! service simulation-id channel
-                         (fn [event]
-                           (http/send! channel (log-event->frame event) false)))
-  (run-simulation! simulation-id))
-
-(defn sse-response [service simulation-id request run-simulation!]
-  (http/as-channel request
-                   {:on-open (partial on-open service simulation-id run-simulation!)
-                    :on-close (fn [channel _status]
-                                (simulation/unsubscribe! service simulation-id channel))}))
-
-;; game fragment stream
 
 (defn fragment-frames
   "One SSE message per fragment: {:status html ...} becomes

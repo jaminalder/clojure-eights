@@ -31,7 +31,6 @@ The current implementation includes:
 - live updates over SSE: every move re-renders per-player hiccup fragments
   (status, game-board, player-hand) that htmx swaps into each open browser
 - spectator view for anyone opening the link after the game started
-- a minimal web observer page (`/observer`) that streams simulation logs over SSE
 
 ## How To Read The Project
 
@@ -39,7 +38,7 @@ The code is the primary specification.
 
 - domain behavior lives in `src/crazy_eights/domain/`
 - application lifecycle lives in `src/crazy_eights/app/`
-- web transport (routes, observer page, SSE) lives in `src/crazy_eights/web/`
+- web transport (routes, game views, SSE) lives in `src/crazy_eights/web/`
 - tests under `test/crazy_eights/domain/` are the executable spec
 - app tests under `test/crazy_eights/app/` exercise the in-memory shell around the domain
 - web tests under `test/crazy_eights/web/` cover routes and SSE wiring
@@ -122,8 +121,7 @@ Run the web server:
 clojure -M:run-web
 ```
 
-Then open `http://localhost:8080` to host a multiplayer game, or
-`http://localhost:8080/observer` for the simulation observer. Game state is
+Then open `http://localhost:8080` to host a multiplayer game. Game state is
 in-memory only: a server restart forgets all games.
 
 The 52 card face SVGs under `resources/public/cards/` are Byron Knoll's

@@ -6,7 +6,7 @@
             [crazy_eights.web.routes :as routes]))
 
 (defn- handler [store]
-  (routes/app {:store store :simulation-service nil}))
+  (routes/app {:store store}))
 
 (defn- request
   ([method uri] (request method uri nil nil))

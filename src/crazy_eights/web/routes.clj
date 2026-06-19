@@ -1,11 +1,8 @@
 (ns crazy_eights.web.routes
   (:require [clojure.data.json :as json]
             [crazy_eights.app.core :as app]
-            [crazy_eights.app.simulation :as simulation]
-            [crazy_eights.domain.model :as model]
             [crazy_eights.web.commands :as web-commands]
             [crazy_eights.web.fragments :as fragments]
-            [crazy_eights.web.page :as page]
             [crazy_eights.web.paths :as paths]
             [crazy_eights.web.sse :as sse]
             [crazy_eights.web.view_model :as view-model]
@@ -196,52 +193,14 @@
    ["/games/:id/events"
     {:get (game-events-handler store)}]])
 
-(defn- simulation-response [start! request]
-  (let [player-count (some-> (get-in request [:params "player-count"]) parse-long)]
-    (if (and player-count (<= 2 player-count model/max-player-count))
-      (let [{:keys [simulation-id]} (start! player-count)]
-        (json-response 202 {:simulation-id simulation-id}))
-      (json-response 400 {:error "invalid player-count"}))))
-
-(defn- simulation-sse-response [simulation-service run-simulation! simulation-id request]
-  (if (simulation/get-simulation simulation-service simulation-id)
-    (sse/sse-response simulation-service simulation-id request run-simulation!)
-    (json-response 404 {:error "unknown simulation"})))
-
-(defn- observer-handler [_request]
-  (html-response 200 (page/observer-page)))
-
-(defn- start-simulation-handler [start!]
-  (fn [request]
-    (simulation-response start! request)))
-
-(defn- simulation-events-handler [sse-response]
-  (fn [request]
-    (sse-response (get-in request [:path-params :id]) request)))
-
-(defn- simulation-routes [{:keys [simulation-service start! run-simulation! sse-response]}]
-  (let [start! (or start!
-                   #(simulation/start! simulation-service %))
-        run-simulation! (or run-simulation!
-                            (fn [simulation-id]
-                              (future (simulation/run-to-completion! simulation-service simulation-id))))
-        sse-response (or sse-response
-                         (partial simulation-sse-response simulation-service run-simulation!))]
-    [["/observer"
-      {:get observer-handler}]
-     ["/simulations"
-      {:post (start-simulation-handler start!)}]
-     ["/simulations/:id/events"
-      {:get (simulation-events-handler sse-response)}]]))
-
-(defn app [{:keys [store] :as config}]
+(defn app [{:keys [store]}]
   (let [store (or store (app/create-store))]
     (params/wrap-params
      (cookies/wrap-cookies
       (ring/ring-handler
        (ring/router
-        (into (game-routes store) (simulation-routes config))
-        {:data {:middleware [wrap-logging]}})
+         (game-routes store)
+         {:data {:middleware [wrap-logging]}})
        (ring/routes
         (ring/create-resource-handler {:path "/assets" :root "public"})
         (ring/create-default-handler

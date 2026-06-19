@@ -10,7 +10,7 @@ clojure -M:test --focus crazy_eights.domain.commands-test    # one namespace
 clojure -M:lint                                              # clj-kondo (must stay clean)
 clojure -M:sim-log                                           # domain simulation with move log
 clojure -M:app-sim-log                                       # app-layer simulation with log
-clojure -M:run-web                                           # web observer on http://localhost:8080
+clojure -M:run-web                                           # multiplayer game web UI on http://localhost:8080
 ./scripts/verify-web                                         # live HTTP + Playwright web smoke
 ./scripts/verify-web --no-browser                            # live HTTP smoke without browser
 ```
@@ -38,9 +38,8 @@ Three layers, dependency direction strictly `web → app → domain`:
   reitit + cookies (per-game `ce-<game-id>` cookie identifies the player) with
   injectable seams for tests; `sse` pushes re-rendered fragments to every
   connected viewer on each app event (htmx sse extension swaps them in);
-  `cards` maps cards to codes/SVG paths; `page` is the simulation observer at
-  /observer; `server` is the entry point. Static assets live in
-  `resources/public` (52 public-domain card SVGs + htmx vendored).
+  `cards` maps cards to codes/SVG paths; `server` is the entry point. Static
+  assets live in `resources/public` (52 public-domain card SVGs + htmx vendored).
 
 State lives in atoms at the app/web boundary only; everything below is values in,
 values out.
