@@ -6,9 +6,18 @@
 
 (defonce server (atom nil))
 
-(defn -main [& _args]
+(defn start! []
   (let [store (app/create-store)
         service (simulation/create-service {:delay-fn (fn [] (Thread/sleep 500))})
         handler (routes/app {:store store :simulation-service service})]
     (reset! server (http/run-server handler {:port 8080}))
     (println "server started on http://localhost:8080")))
+
+(defn stop! []
+  (when-let [stop-server @server]
+    (stop-server)
+    (reset! server nil)))
+
+(defn -main [& _args]
+  (start!)
+  @(promise))

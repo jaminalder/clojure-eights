@@ -11,6 +11,8 @@ clojure -M:lint                                              # clj-kondo (must s
 clojure -M:sim-log                                           # domain simulation with move log
 clojure -M:app-sim-log                                       # app-layer simulation with log
 clojure -M:run-web                                           # web observer on http://localhost:8080
+./scripts/verify-web                                         # live HTTP + Playwright web smoke
+./scripts/verify-web --no-browser                            # live HTTP smoke without browser
 ```
 
 There is no REPL alias; evaluate forms via `clojure -M -e` or add tests instead.
@@ -77,5 +79,6 @@ without HTTP, HTML, sessions, routes, or a running server.
   the need.
 - After every change run `clojure -M:test` and `clojure -M:lint`; both must be green.
 - For any live web change, follow the `web-verification` skill before claiming it
-  works (curl first, then browser, then clean shutdown).
+  works. Prefer `./scripts/verify-web` because it handles server startup, curl
+  checks, Playwright smoke, logs, and cleanup in one command.
 - When editing Clojure files, follow the `clojure-craft` skill.

@@ -24,22 +24,49 @@ For any meaningful web change, verify all of these layers:
 
 ## Required Workflow
 
-### 1. Start The Server With A Stored PID
+### 1. Prefer The Repo Verification Script
 
-Use a background process and store the pid in the approved temp area:
+For normal live web verification, run the repo-local script:
 
 ```bash
-clojure -M:run-web > "/var/folders/zp/66m3p9ks56vdcf54dd68kwgh0000gn/T/opencode/web-server.log" 2>&1 & echo $! > "/var/folders/zp/66m3p9ks56vdcf54dd68kwgh0000gn/T/opencode/web-server.pid"
+./scripts/verify-web
 ```
 
-Never rely on remembering the PID from `lsof` later.
+Use this before doing the manual steps below unless you need to debug one
+specific layer. It starts `clojure -M:run-web`, waits for readiness, verifies
+core HTTP routes with `curl`, drives a browser flow with `playwright-cli`,
+prints recent server logs, and stops the server.
 
-### 2. Verify Readiness Before Browser Work
+For backend-only verification:
+
+```bash
+./scripts/verify-web --no-browser
+```
+
+For Codex in a managed sandbox, this command may need one escalated approval
+because it binds `localhost:8080` and opens Playwright's browser cache. Prefer
+requesting approval for `./scripts/verify-web` once instead of asking for
+separate approvals for `clojure`, `curl`, `playwright-cli`, and `kill`.
+
+### 2. Manual Server Start With A Stored PID
+
+Use manual startup only when the script is not enough for debugging. Store the
+pid in a fixed temp area:
+
+```bash
+mkdir -p /tmp/crazy-eights
+clojure -M:run-web > /tmp/crazy-eights/web-server.log 2>&1 & echo $! > /tmp/crazy-eights/web-server.pid
+```
+
+Never rely on remembering the PID from `lsof` later. `clojure -M:run-web`
+blocks until killed, so it is safe to run in the background.
+
+### 3. Verify Readiness Before Browser Work
 
 Check the port explicitly:
 
 ```bash
-lsof -i :8080
+lsof -nP -iTCP:8080 -sTCP:LISTEN
 ```
 
 Do not open the browser until the server is actually listening.
@@ -47,32 +74,33 @@ Do not open the browser until the server is actually listening.
 Also verify HTTP readiness explicitly, not just the socket:
 
 ```bash
-curl -i http://localhost:8080/
+curl --noproxy '*' -i http://localhost:8080/
 ```
 
 If the port is listening but the first browser navigation still races or fails, retry only after the HTTP probe succeeds.
 
-### 3. Verify HTTP Behavior Directly First
+### 4. Verify HTTP Behavior Directly First
 
 Before debugging the browser, hit the backend endpoints with `curl`.
 
 Examples:
 
 ```bash
-curl -i http://localhost:8080/
-curl -i -X POST -d "player-count=4" http://localhost:8080/simulations
-curl -N http://localhost:8080/simulations/sim-0/events
+curl --noproxy '*' -i http://localhost:8080/
+curl --noproxy '*' -i -X POST -d "player-count=4" http://localhost:8080/simulations
+curl --noproxy '*' -N http://localhost:8080/simulations/sim-0/events
 ```
 
 This isolates backend problems from frontend problems.
 
-### 4. Use Playwright By Snapshot, Not Guessing
+### 5. Use Playwright By Snapshot, Not Guessing
 
 Use the Playwright CLI against the live page.
 
 Recommended sequence:
 
 ```bash
+playwright-cli open http://localhost:8080
 playwright-cli goto http://localhost:8080
 playwright-cli snapshot
 playwright-cli click e5
@@ -86,10 +114,11 @@ If snapshot-ref clicking is flaky in the current environment, do not stop there.
 
 - verify backend behavior with direct HTTP requests first
 - verify browser state changes (status text, DOM updates, console, requests) separately
+- use `playwright-cli run-code` for stable locator-based flows when snapshots are too brittle
 
 Do not conclude the page is broken just because a specific `playwright-cli click <ref>` invocation fails. Distinguish tool interaction issues from application issues.
 
-### 5. Inspect Browser Console And Requests
+### 6. Inspect Browser Console And Requests
 
 If the page looks fine but nothing happens:
 
@@ -106,11 +135,11 @@ Typical signal patterns:
 
 Also check visible browser state changes in the page itself. A minimal observer page should expose status text such as `idle`, `starting`, `running`, `error`, or `stream closed` so browser verification is possible without deep DOM inspection.
 
-### 6. Inspect Server Log File
+### 7. Inspect Server Log File
 
 Read the log file directly:
 
-`/var/folders/zp/66m3p9ks56vdcf54dd68kwgh0000gn/T/opencode/web-server.log`
+`/tmp/crazy-eights/web-server.log`
 
 Use it to confirm:
 
@@ -118,18 +147,18 @@ Use it to confirm:
 - outgoing responses
 - ordering between POST and SSE connect
 
-### 7. Shut Down The Server Explicitly
+### 8. Shut Down The Server Explicitly
 
 Always stop the server using the stored PID:
 
 ```bash
-kill "$(cat /var/folders/zp/66m3p9ks56vdcf54dd68kwgh0000gn/T/opencode/web-server.pid)"
+kill "$(cat /tmp/crazy-eights/web-server.pid)"
 ```
 
 Then verify the port is free:
 
 ```bash
-lsof -i :8080
+lsof -nP -iTCP:8080 -sTCP:LISTEN
 ```
 
 If the stored PID no longer exists, do not guess. Re-check the actual listening process with `lsof -i :8080` and stop only the live server process.

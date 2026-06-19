@@ -1,0 +1,204 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+Usage: scripts/verify-web [--no-browser] [--keep-server]
+
+Runs a live web smoke test:
+  1. starts clojure -M:run-web with a stored PID
+  2. waits for HTTP readiness
+  3. verifies core routes with curl
+  4. verifies browser behavior with playwright-cli unless --no-browser is set
+  5. prints recent server logs
+  6. stops the server unless --keep-server is set
+
+Environment:
+  BASE_URL                  default: http://localhost:8080
+  CRAZY_EIGHTS_VERIFY_DIR   default: /tmp/crazy-eights
+EOF
+}
+
+browser=true
+keep_server=false
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --no-browser)
+      browser=false
+      shift
+      ;;
+    --keep-server)
+      keep_server=true
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "unknown option: $1" >&2
+      usage >&2
+      exit 2
+      ;;
+  esac
+done
+
+base_url="${BASE_URL:-http://localhost:8080}"
+verify_dir="${CRAZY_EIGHTS_VERIFY_DIR:-/tmp/crazy-eights}"
+server_log="$verify_dir/web-server.log"
+server_pid="$verify_dir/web-server.pid"
+host_cookies="$verify_dir/host.cookies"
+guest_cookies="$verify_dir/guest.cookies"
+
+mkdir -p "$verify_dir"
+rm -f "$server_log" "$server_pid" "$host_cookies" "$guest_cookies"
+
+server_started=false
+
+cleanup() {
+  if [[ "$keep_server" == false && "$server_started" == true && -f "$server_pid" ]]; then
+    local pid
+    pid="$(cat "$server_pid")"
+    if kill -0 "$pid" 2>/dev/null; then
+      kill "$pid" 2>/dev/null || true
+      wait "$pid" 2>/dev/null || true
+    fi
+  fi
+
+  if [[ "$browser" == true ]] && command -v playwright-cli >/dev/null 2>&1; then
+    playwright-cli close >/dev/null 2>&1 || true
+  fi
+}
+trap cleanup EXIT
+
+curl_web() {
+  curl --noproxy '*' -fsS "$@"
+}
+
+curl_web_i() {
+  curl --noproxy '*' -fsS -i "$@"
+}
+
+assert_contains() {
+  local haystack="$1"
+  local needle="$2"
+  local label="$3"
+  if [[ "$haystack" != *"$needle"* ]]; then
+    echo "expected $label to contain: $needle" >&2
+    echo "$haystack" >&2
+    exit 1
+  fi
+}
+
+wait_ready() {
+  for _ in {1..60}; do
+    if curl_web "$base_url/" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 0.25
+  done
+
+  echo "server did not become ready at $base_url" >&2
+  tail -80 "$server_log" >&2 || true
+  exit 1
+}
+
+start_server() {
+  echo "Starting web server..."
+  clojure -M:run-web > "$server_log" 2>&1 &
+  echo $! > "$server_pid"
+  server_started=true
+  wait_ready
+}
+
+http_smoke() {
+  echo "Verifying HTTP routes..."
+
+  local start_page
+  start_page="$(curl_web "$base_url/")"
+  assert_contains "$start_page" "host a game" "start page"
+
+  local create_response
+  create_response="$(curl_web_i -c "$host_cookies" -d 'name=http-host' "$base_url/games")"
+  assert_contains "$create_response" "303 See Other" "create response"
+  assert_contains "$create_response" "Location: /games/game-0" "create response"
+
+  local join_response
+  join_response="$(curl_web_i -c "$guest_cookies" -d 'name=http-guest' "$base_url/games/game-0/join")"
+  assert_contains "$join_response" "303 See Other" "join response"
+
+  local guest_leave
+  guest_leave="$(curl_web_i -b "$guest_cookies" -X POST "$base_url/games/game-0/leave")"
+  assert_contains "$guest_leave" "Location: /" "guest leave response"
+  assert_contains "$guest_leave" "Max-Age=0" "guest leave response"
+
+  local host_leave
+  host_leave="$(curl_web_i -b "$host_cookies" -X POST "$base_url/games/game-0/leave")"
+  assert_contains "$host_leave" "Location: /" "host leave response"
+
+  local ended_table
+  ended_table="$(curl --noproxy '*' -sS -i "$base_url/games/game-0")"
+  assert_contains "$ended_table" "404 Not Found" "ended table response"
+}
+
+browser_smoke() {
+  if ! command -v playwright-cli >/dev/null 2>&1; then
+    echo "playwright-cli not found; skipping browser smoke." >&2
+    return 0
+  fi
+
+  echo "Verifying browser flow with playwright-cli..."
+  playwright-cli close >/dev/null 2>&1 || true
+  playwright-cli open "$base_url" >/dev/null
+
+  playwright-cli fill 'input[name="name"]' 'browser-host' >/dev/null
+  playwright-cli click 'button:has-text("create game")' >/dev/null
+  sleep 0.5
+  assert_contains "$(playwright-cli snapshot)" "waiting for players — 1 joined" "browser snapshot"
+
+  local browser_join
+  browser_join="$(curl_web_i -d 'name=browser-guest' "$base_url/games/game-1/join")"
+  assert_contains "$browser_join" "303 See Other" "browser guest join response"
+  sleep 0.5
+  assert_contains "$(playwright-cli snapshot)" "waiting for players — 2 joined" "browser snapshot"
+
+  playwright-cli click 'button:has-text("start game")' >/dev/null
+  sleep 0.5
+  assert_contains "$(playwright-cli snapshot)" "turn" "browser snapshot"
+
+  playwright-cli goto "$base_url" >/dev/null
+  playwright-cli fill 'input[name="name"]' 'leaving-host' >/dev/null
+  playwright-cli click 'button:has-text("create game")' >/dev/null
+  sleep 0.5
+  assert_contains "$(playwright-cli snapshot)" "leave table" "browser snapshot"
+  playwright-cli click 'button:has-text("leave table")' >/dev/null
+  sleep 0.5
+  assert_contains "$(playwright-cli snapshot)" "host a game" "browser snapshot"
+
+  sleep 0.25
+  local server_output
+  server_output="$(cat "$server_log")"
+  assert_contains "$server_output" "browser-host" "server log"
+  assert_contains "$server_output" "browser-guest" "server log"
+  assert_contains "$server_output" "/start" "server log"
+  assert_contains "$server_output" "leaving-host" "server log"
+  assert_contains "$server_output" "/leave" "server log"
+
+  local console_output
+  console_output="$(playwright-cli console error)"
+  assert_contains "$console_output" "Errors: 0" "browser console"
+}
+
+print_logs() {
+  echo "Recent server log:"
+  tail -80 "$server_log" || true
+}
+
+start_server
+http_smoke
+if [[ "$browser" == true ]]; then
+  browser_smoke
+fi
+print_logs
+echo "Web verification passed."

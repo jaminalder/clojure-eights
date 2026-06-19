@@ -41,3 +41,5 @@
 ## Web Verification
 
 - When working on live web behavior, browser interaction, SSE, or request/response flow in this repo, use the repo-local `web-verification` skill before claiming the web change works.
+- Prefer `./scripts/verify-web` for live web checks. It starts the server, verifies HTTP routes, runs a Playwright browser smoke test, prints logs, and cleans up.
+- In sandboxed agents, request approval for `./scripts/verify-web` as one scoped command rather than asking separately for server, curl, Playwright, and kill commands.
