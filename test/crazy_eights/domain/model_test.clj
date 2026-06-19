@@ -35,3 +35,17 @@
                (model/remove-card doubled matching-rank)))
         (is (= [matching-rank wild-eight matching-rank]
                (model/remove-card doubled wrong-card)))))))
+
+(deftest game-state-language
+  (let [state {:players [(model/player [(model/card :ace :clubs)])
+                        (model/player [(model/card :king :spades)])]
+               :current-player 0
+               :status :in-progress}
+        finished-state (assoc state :status :finished)]
+    (is (= [(model/card :ace :clubs)]
+           (model/current-hand state 0)))
+    (is (model/current-player? state 0))
+    (is (not (model/current-player? state 1)))
+    (is (= 1 (model/next-player state)))
+    (is (not (model/game-over? state)))
+    (is (model/game-over? finished-state))))

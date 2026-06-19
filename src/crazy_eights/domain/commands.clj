@@ -1,5 +1,6 @@
 (ns crazy_eights.domain.commands
-  (:require [crazy_eights.domain.model :as model]))
+  (:require [crazy_eights.domain.events :as events]
+            [crazy_eights.domain.model :as model]))
 
 (defn- domain-error [reason]
   {:type :domain-error
@@ -18,37 +19,48 @@
   (let [remaining (vec (remaining-deck player-count deck))
         discard (first remaining)
         draw-pile (vec (rest remaining))]
-    [{:type :game-started
-      :players (deal-hands player-count deck)
-      :draw-pile draw-pile
-      :discard-pile [discard]
-      :active-suit (:suit discard)
-      :current-player 0
-      :status :in-progress
-      :winner nil
-      :passes-in-row 0}]))
+    [(events/game-started
+      {:players (deal-hands player-count deck)
+       :draw-pile draw-pile
+       :discard-pile [discard]
+       :active-suit (:suit discard)
+       :current-player 0
+       :status :in-progress
+       :winner nil
+       :passes-in-row 0})]))
 
-(defn- game-finished? [state]
-  (= :finished (:status state)))
+(defn- valid-player-count? [player-count]
+  (and (pos-int? player-count)
+       (<= 2 player-count model/max-player-count)))
+
+(defn- enough-cards-to-start? [player-count deck]
+  (< (* player-count model/cards-per-player)
+     (count deck)))
+
+(defn- opening-card [player-count deck]
+  (first (remaining-deck player-count deck)))
+
+(defn- valid-opening-card? [player-count deck]
+  (not= :eight (:rank (opening-card player-count deck))))
+
+(defn- valid-start-game? [state {:keys [player-count deck]}]
+  (and (nil? state)
+       (valid-player-count? player-count)
+       (every? model/card? deck)
+       (enough-cards-to-start? player-count deck)
+       (valid-opening-card? player-count deck)))
 
 (defn- reject-if-finished [state]
-  (when (game-finished? state)
+  (when (model/game-over? state)
     (domain-error :game-already-finished)))
-
-(defn- next-player [state]
-  (mod (inc (:current-player state))
-       (count (:players state))))
-
-(defn- current-hand [state player]
-  (get-in state [:players player :hand]))
 
 (defn- draw-card-events [state {:keys [player]}]
   (if-let [error (reject-if-finished state)]
     error
-    (let [hand (current-hand state player)
+    (let [hand (model/current-hand state player)
           drawn-card (first (:draw-pile state))]
       (cond
-        (not= player (:current-player state))
+        (not (model/current-player? state player))
         (domain-error :not-current-player)
 
         (model/playable-hand? state hand)
@@ -58,9 +70,7 @@
         (domain-error :draw-pile-empty)
 
         :else
-        [{:type :card-drawn
-          :player player
-          :card drawn-card}]))))
+        [(events/card-drawn player drawn-card)]))))
 
 (defn- reshuffle-draw-pile-events [state {:keys [cards]}]
   (if-let [error (reject-if-finished state)]
@@ -73,18 +83,17 @@
       (domain-error :invalid-reshuffle-cards)
 
       :else
-      [{:type :draw-pile-reshuffled
-        :cards (vec cards)
-        :top-card (model/top-discard (:discard-pile state))}])))
+      [(events/draw-pile-reshuffled cards
+                                    (model/top-discard (:discard-pile state)))])))
 
 (defn- pass-turn-events [state {:keys [player]}]
   (if-let [error (reject-if-finished state)]
     error
-    (let [hand (current-hand state player)
-          next-player-index (next-player state)
+    (let [hand (model/current-hand state player)
+          next-player-index (model/next-player state)
           passes-after (inc (:passes-in-row state))]
       (cond
-        (not= player (:current-player state))
+        (not (model/current-player? state player))
         (domain-error :not-current-player)
 
         (model/playable-hand? state hand)
@@ -97,18 +106,17 @@
         (domain-error :must-reshuffle-before-passing)
 
         :else
-        (cond-> [{:type :turn-passed
-                  :player next-player-index}]
+        (cond-> [(events/turn-passed next-player-index)]
           (= passes-after (count (:players state)))
-          (conj {:type :game-blocked}))))))
+          (conj (events/game-blocked)))))))
 
 (defn- play-card-events [state {:keys [player card declared-suit]}]
   (if-let [error (reject-if-finished state)]
     error
-    (let [hand (current-hand state player)
+    (let [hand (model/current-hand state player)
           remaining-hand (model/remove-card hand card)]
       (cond
-        (not= player (:current-player state))
+        (not (model/current-player? state player))
         (domain-error :not-current-player)
 
         (not (model/card-in-hand? hand card))
@@ -122,31 +130,19 @@
         (domain-error :declared-suit-required)
 
         :else
-        (cond-> [{:type :card-played
-                  :player player
-                  :card card}]
+        (cond-> [(events/card-played player card)]
           (model/requires-declared-suit? card)
-          (conj {:type :suit-declared
-                 :suit declared-suit})
+          (conj (events/suit-declared declared-suit))
 
           (empty? remaining-hand)
-          (conj {:type :game-won
-                 :player player})
+          (conj (events/game-won player))
 
           (seq remaining-hand)
-          (conj {:type :turn-advanced
-                 :player (next-player state)}))))))
+          (conj (events/turn-advanced (model/next-player state))))))))
 
 (defn decide [state command]
   (case (:type command)
-    :start-game (if (and (nil? state)
-                         (<= 2 (:player-count command) model/max-player-count)
-                         (pos-int? (:player-count command))
-                         (every? model/card? (:deck command))
-                         (not= :eight (:rank (first (vec (remaining-deck (:player-count command)
-                                                                       (:deck command))))))
-                         (< (* (:player-count command) model/cards-per-player)
-                            (count (:deck command))))
+    :start-game (if (valid-start-game? state command)
                   (start-game-events command)
                   (domain-error :invalid-start-game))
     :play-card (play-card-events state command)

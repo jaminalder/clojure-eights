@@ -27,6 +27,19 @@
 (defn player [hand]
   {:hand (vec hand)})
 
+(defn game-over? [state]
+  (= :finished (:status state)))
+
+(defn current-hand [state player-index]
+  (get-in state [:players player-index :hand]))
+
+(defn current-player? [state player-index]
+  (= player-index (:current-player state)))
+
+(defn next-player [state]
+  (mod (inc (:current-player state))
+       (count (:players state))))
+
 (defn card? [value]
   (and (map? value)
        (valid-rank? (:rank value))
