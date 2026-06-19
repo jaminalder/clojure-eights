@@ -44,14 +44,23 @@
                      "data: " (str/replace html "\n" "") "\n\n"))
               fragments)))
 
+(defn table-ended-frame []
+  (str "event: table-ended\n"
+       "data: <script>window.location.href='/'</script>\n\n"))
+
+(defn- game-event-frame [render-fragments event]
+  (if (= :table-ended (:type event))
+    (table-ended-frame)
+    (fragment-frames (render-fragments))))
+
 (defn game-on-open
   "Subscribes the channel to app events before anything can move, then sends
   the current fragments so no transition between page render and connect is lost."
   [store game-id render-fragments channel]
   (http/send! channel open-response false)
   (app/subscribe! store game-id channel
-                  (fn [_event]
-                    (http/send! channel (fragment-frames (render-fragments)) false)))
+                  (fn [event]
+                    (http/send! channel (game-event-frame render-fragments event) false)))
   (http/send! channel (fragment-frames (render-fragments)) false))
 
 (defn game-events-response [store game-id render-fragments request]

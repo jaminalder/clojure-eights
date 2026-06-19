@@ -15,6 +15,7 @@
     (is (= 1 (:seat p2)))
     (is (= "anna" (get-in game [:players (:player-id p1) :name])))
     (is (= "player 2" (get-in game [:players (:player-id p2) :name])))
+    (is (= 2 (:next-player-number game)))
     (is (= #{(:player-id p1) (:player-id p2)}
            (set (keys (:players game)))))))
 
@@ -50,6 +51,11 @@
                :name "anna"}]
              @sink)))))
 
+(deftest subscribing-to-missing-game-does-not-create-table
+  (let [store (app/create-store)]
+    (is (= :test (app/subscribe! store "missing" :test identity)))
+    (is (empty? (:games @store)))))
+
 (deftest join-game-rejects-more-than-max-players
   (let [store (app/create-store)
         {:keys [game-id]} (app/create-game! store)]
@@ -73,6 +79,36 @@
     (is (= {:error :game-already-started}
            (app/join-game! store game-id "late")))))
 
+(deftest non-host-can-leave-before-start
+  (let [store (app/create-store)
+        {:keys [game-id]} (app/create-game! store)
+        p1 (app/join-game! store game-id "anna")
+        p2 (app/join-game! store game-id "ben")
+        p3 (app/join-game! store game-id "cody")]
+    (is (= {:left? true :player-id (:player-id p2)}
+           (app/leave-table! store game-id (:player-id p2))))
+    (let [game (app/get-game store game-id)]
+      (is (= [0 1] (mapv :seat (sort-by :seat (vals (:players game))))))
+      (is (= 1 (get-in game [:players (:player-id p3) :seat])))
+      (is (= 3 (:next-player-number game))))
+    (let [p4 (app/join-game! store game-id "drew")]
+      (is (= "game-0-player-3" (:player-id p4)))
+      (is (= 2 (:seat p4)))
+      (is (= 0 (get-in (app/get-game store game-id) [:players (:player-id p1) :seat]))))))
+
+(deftest host-leaving-ends-the-table
+  (let [store (app/create-store)
+        {:keys [game-id]} (app/create-game! store)
+        p1 (app/join-game! store game-id "anna")
+        _p2 (app/join-game! store game-id "ben")
+        sink (atom [])]
+    (app/subscribe! store game-id :test #(swap! sink conj %))
+    (is (= {:ended? true}
+           (app/leave-table! store game-id (:player-id p1))))
+    (is (nil? (app/get-game store game-id)))
+    (is (= [{:type :table-ended :game-id game-id}] @sink))
+    (is (= :test (app/unsubscribe! store game-id :test)))))
+
 (deftest start-game-use-case
   (let [store (app/create-store)
         {:keys [game-id]} (app/create-game! store)
@@ -85,6 +121,7 @@
       (let [result (app/start-game! store game-id (:player-id p1)
                                     {:deck (app/valid-start-deck 2)})]
         (is (vector? (:events result)))
+        (is (true? (:started-once? (app/get-game store game-id))))
         (is (= :in-progress
                (get-in (app/get-game store game-id) [:state :status])))))
     (testing "starting twice is rejected"
@@ -148,6 +185,40 @@
         p2 (app/join-game! store game-id "ben")]
     (app/start-game! store game-id (:player-id p1) {:deck fixed-deck})
     [store game-id p1 p2]))
+
+(deftest finished-table-can-start-a-new-game
+  (let [[store game-id p1 p2] (started-pair)
+        players-before (:players (app/get-game store game-id))
+        finished-state (assoc (:state (app/get-game store game-id))
+                              :status :finished
+                              :winner 0)]
+    (swap! store assoc-in [:games game-id :state] finished-state)
+    (let [result (app/start-game! store game-id (:player-id p1) {:deck fixed-deck})
+          game (app/get-game store game-id)]
+      (is (vector? (:events result)))
+      (is (= players-before (:players game)))
+      (is (= :in-progress (get-in game [:state :status])))
+      (is (= [(:player-id p1) (:player-id p2)]
+             (sort (keys (:players game))))))))
+
+(deftest non-host-leaving-after-finish-keeps-table-between-games
+  (let [[store game-id _p1 p2] (started-pair)
+        finished-state (assoc (:state (app/get-game store game-id))
+                              :status :finished
+                              :winner 0)]
+    (swap! store assoc-in [:games game-id :state] finished-state)
+    (is (= {:left? true :player-id (:player-id p2)}
+           (app/leave-table! store game-id (:player-id p2))))
+    (let [game (app/get-game store game-id)]
+      (is (nil? (:state game)))
+      (is (true? (:started-once? game)))
+      (is (= 1 (count (:players game)))))))
+
+(deftest players-cannot-leave-during-active-game
+  (let [[store game-id _p1 p2] (started-pair)]
+    (is (= {:error :game-in-progress}
+           (app/leave-table! store game-id (:player-id p2))))
+    (is (= 2 (count (:players (app/get-game store game-id)))))))
 
 (deftest play-card-use-case
   (let [[store game-id p1 p2] (started-pair)]

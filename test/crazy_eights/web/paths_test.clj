@@ -9,5 +9,6 @@
   (is (= "/games/game-0/play" (paths/play "game-0")))
   (is (= "/games/game-0/draw" (paths/draw "game-0")))
   (is (= "/games/game-0/pass" (paths/pass "game-0")))
+  (is (= "/games/game-0/leave" (paths/leave "game-0")))
   (is (= "/games/game-0/hand" (paths/hand "game-0")))
   (is (= "/games/game-0/events" (paths/events "game-0"))))

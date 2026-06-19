@@ -45,6 +45,18 @@
     (app/start-game! store game-id (:player-id p1) {:deck fixed-deck})
     [store game-id]))
 
+(defn- finish-game! [store game-id]
+  (swap! store assoc-in [:games game-id :state]
+         {:players [{:hand [(model/card :queen :clubs)]}
+                    {:hand []}]
+          :draw-pile [(model/card :four :clubs)]
+          :discard-pile [(model/card :queen :spades)]
+          :active-suit :spades
+          :current-player 0
+          :status :finished
+          :winner 1
+          :passes-in-row 0}))
+
 (deftest start-page-offers-game-creation
   (let [response ((handler (app/create-store)) (request :get "/"))]
     (is (= 200 (:status response)))
@@ -171,6 +183,50 @@
     (is (str/includes? (:body page) "spectat"))
     (is (= 303 (:status join)))
     (is (= 2 (count (:players (app/get-game store game-id)))))))
+
+(deftest host-can-start-new-game-at-finished-table
+  (let [[store game-id] (started-game)
+        h (handler store)]
+    (finish-game! store game-id)
+    (let [response (h (request :post (str "/games/" game-id "/start")
+                               nil "ce-game-0=game-0-player-0"))
+          game (app/get-game store game-id)]
+      (is (= 200 (:status response)))
+      (is (= :in-progress (get-in game [:state :status])))
+      (is (= ["anna" "ben"] (mapv :name (sort-by :seat (vals (:players game)))))))))
+
+(deftest non-host-leave-redirects-home-and-keeps-table
+  (let [store (app/create-store)
+        h (handler store)
+        _ (h (request :post "/games" {"name" "anna"}))
+        _ (h (request :post "/games/game-0/join" {"name" "ben"}))
+        response (h (request :post "/games/game-0/leave"
+                             nil "ce-game-0=game-0-player-1"))
+        game (app/get-game store "game-0")]
+    (is (= 303 (:status response)))
+    (is (= "/" (get-in response [:headers "Location"])))
+    (is (str/includes? (set-cookie response) "Max-Age=0"))
+    (is (= ["anna"] (mapv :name (sort-by :seat (vals (:players game))))))))
+
+(deftest host-leave-redirects-home-and-ends-table
+  (let [store (app/create-store)
+        h (handler store)
+        _ (h (request :post "/games" {"name" "anna"}))
+        _ (h (request :post "/games/game-0/join" {"name" "ben"}))
+        response (h (request :post "/games/game-0/leave"
+                             nil "ce-game-0=game-0-player-0"))]
+    (is (= 303 (:status response)))
+    (is (= "/" (get-in response [:headers "Location"])))
+    (is (nil? (app/get-game store "game-0")))))
+
+(deftest players-cannot-leave-active-table
+  (let [[store game-id] (started-game)
+        h (handler store)
+        response (h (request :post (str "/games/" game-id "/leave")
+                             nil "ce-game-0=game-0-player-1"))]
+    (is (= 200 (:status response)))
+    (is (str/includes? (:body response) "game is in progress"))
+    (is (app/get-game store game-id))))
 
 (deftest winning-play-reports-the-winner
   (let [store (app/create-store)

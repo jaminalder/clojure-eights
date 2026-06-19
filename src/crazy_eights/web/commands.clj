@@ -46,3 +46,8 @@
   (if player-id
     {:type :pass-turn :game-id game-id :player-id player-id}
     {:error :not-a-player}))
+
+(defn leave-table-command [game-id player-id _params]
+  (if player-id
+    {:type :leave-table :game-id game-id :player-id player-id}
+    {:error :not-a-player}))

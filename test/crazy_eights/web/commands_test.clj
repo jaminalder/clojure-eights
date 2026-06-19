@@ -53,3 +53,9 @@
          (commands/pass-turn-command "g" "p" {})))
   (is (= {:error :not-a-player} (commands/draw-card-command "g" nil {})))
   (is (= {:error :not-a-player} (commands/pass-turn-command "g" nil {}))))
+
+(deftest leave-table-command-requires-a-player
+  (is (= {:type :leave-table :game-id "g" :player-id "p"}
+         (commands/leave-table-command "g" "p" {})))
+  (is (= {:error :not-a-player}
+         (commands/leave-table-command "g" nil {}))))

@@ -64,6 +64,9 @@
 (defn- player-cookie [game-id player-id]
   {(cookie-name game-id) {:value player-id :path "/"}})
 
+(defn- expired-player-cookie [game-id]
+  {(cookie-name game-id) {:value "" :path "/" :max-age 0}})
+
 ;; use cases
 
 (defn- run-use-case [store {:keys [error game-id player-id card declared-suit] :as command}]
@@ -76,6 +79,7 @@
       :play-card (app/play-card! store game-id player-id card declared-suit)
       :draw-card (app/draw-card! store game-id player-id)
       :pass-turn (app/pass-turn! store game-id player-id)
+      :leave-table (app/leave-table! store game-id player-id)
       {:error :unknown-command})))
 
 (defn- status-response
@@ -149,6 +153,16 @@
                                   request)
         (json-response 404 {:error "unknown game"})))))
 
+(defn- leave-table-handler [store]
+  (fn [request]
+    (let [game-id (game-id-of request)
+          viewer (viewer-id store game-id request)
+          command (web-commands/leave-table-command game-id viewer (:params request))
+          result (run-use-case store command)]
+      (if (or (:left? result) (:ended? result))
+        (see-other "/" (expired-player-cookie game-id))
+        (status-response store game-id viewer result)))))
+
 (defn- game-query-handler
   "Resolves the game or replies 404; otherwise renders (render view request)."
   [store render]
@@ -175,6 +189,8 @@
     {:post (game-action-handler store web-commands/draw-card-command)}]
    ["/games/:id/pass"
     {:post (game-action-handler store web-commands/pass-turn-command)}]
+   ["/games/:id/leave"
+    {:post (leave-table-handler store)}]
    ["/games/:id/hand"
     {:get (game-query-handler store hand-fragment-response)}]
    ["/games/:id/events"

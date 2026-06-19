@@ -22,12 +22,16 @@
 
 (def playing-game (assoc waiting-game :state playing-state))
 
+(def between-games (assoc waiting-game :started-once? true))
+
 (deftest waiting-view-for-host
   (let [view (vm/game-view waiting-game "game-0-player-0")]
     (is (= :waiting (:phase view)))
     (is (= ["anna" "ben"] (mapv :name (:players view))))
     (is (true? (:host? view)))
     (is (true? (:can-start? view)))
+    (is (= "start game" (:start-label view)))
+    (is (true? (:can-leave? view)))
     (is (= 0 (:viewer-seat view)))))
 
 (deftest waiting-view-for-guest-and-spectator
@@ -37,10 +41,24 @@
                            "game-0-player-0")]
     (is (false? (:can-start? guest)))
     (is (false? (:host? guest)))
+    (is (true? (:can-leave? guest)))
     (is (nil? (:viewer-seat spectator)))
     (is (false? (:can-start? spectator)))
+    (is (false? (:can-leave? spectator)))
     (testing "host alone cannot start"
       (is (false? (:can-start? solo))))))
+
+(deftest between-games-view-keeps-table-actions-for-seated-players
+  (let [host (vm/game-view between-games "game-0-player-0")
+        guest (vm/game-view between-games "game-0-player-1")
+        spectator (vm/game-view between-games nil)]
+    (is (= :between-games (:phase host)))
+    (is (true? (:can-start? host)))
+    (is (= "start new game" (:start-label host)))
+    (is (true? (:can-leave? host)))
+    (is (false? (:can-start? guest)))
+    (is (true? (:can-leave? guest)))
+    (is (false? (:can-leave? spectator)))))
 
 (deftest playing-view-for-current-player
   (let [view (vm/game-view playing-game "game-0-player-0")]
@@ -110,7 +128,10 @@
       (is (= :finished (:phase view)))
       (is (= "ben" (:winner-name view)))
       (is (false? (:blocked? view)))
-      (is (false? (:your-turn? view))))
+      (is (false? (:your-turn? view)))
+      (is (true? (:can-start? view)))
+      (is (true? (:can-leave? view)))
+      (is (= "start new game" (:start-label view))))
     (let [view (vm/game-view blocked nil)]
       (is (nil? (:winner-name view)))
       (is (true? (:blocked? view))))))

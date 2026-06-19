@@ -24,13 +24,22 @@
   (str "game-" (:next-game-id store-state)))
 
 (defn- next-player-id [game]
-  (str (:game-id game) "-player-" (count (:players game))))
+  (str (:game-id game) "-player-" (:next-player-number game)))
 
 (defn- next-seat [game]
   (count (:players game)))
 
-(defn- game-started? [game]
-  (some? (:state game)))
+(defn- table-started? [game]
+  (:started-once? game))
+
+(defn- game-in-progress? [game]
+  (= :in-progress (get-in game [:state :status])))
+
+(defn- table-open-to-joins? [game]
+  (not (table-started? game)))
+
+(defn- table-leavable? [game]
+  (not (game-in-progress? game)))
 
 (defn- game-full? [game]
   (<= model/max-player-count (next-seat game)))
@@ -43,8 +52,22 @@
         player-id (next-player-id game)
         player {:seat seat
                 :name (or player-name (default-player-name seat))}]
-    [(assoc-in game [:players player-id] player)
+    [(-> game
+         (update :next-player-number inc)
+         (assoc-in [:players player-id] player))
      (assoc player :player-id player-id)]))
+
+(defn- reseat-players [players]
+  (->> players
+       (sort-by (comp :seat val))
+       (map-indexed (fn [seat [player-id player]]
+                      [player-id (assoc player :seat seat)]))
+       (into {})))
+
+(defn- remove-player [game player-id]
+  (-> game
+      (update :players #(reseat-players (dissoc % player-id)))
+      (assoc :state nil)))
 
 (defn- emit! [store game-id event]
   (let [subscribers (get-in @store [:games game-id :subscribers] {})]
@@ -54,6 +77,19 @@
   (assoc result
          :type :player-joined
          :game-id game-id))
+
+(defn- player-left [game-id result]
+  {:type :player-left
+   :game-id game-id
+   :player-id (:player-id result)})
+
+(defn- table-ended [game-id]
+  {:type :table-ended
+   :game-id game-id})
+
+(defn- domain-error [reason]
+  {:type :domain-error
+   :reason reason})
 
 (defn- game-started [command next-state domain-events]
   {:type :game-started
@@ -83,6 +119,8 @@
                   (let [game-id (next-game-id state)
                         game {:game-id game-id
                               :state nil
+                              :started-once? false
+                              :next-player-number 0
                               :players {}
                               :subscribers {}}]
                     [(-> state
@@ -93,7 +131,7 @@
 (defn- join-game-state [state game-id player-name]
   (if-let [game (get-in state [:games game-id])]
     (cond
-      (game-started? game)
+      (not (table-open-to-joins? game))
       [state {:error :game-already-started}]
 
       (game-full? game)
@@ -119,20 +157,59 @@
     (assoc (join-game! store game-id player-name)
            :game-id game-id)))
 
-(defn get-game [store game-id]
-  (get-in @store [:games game-id]))
-
 (defn host? [game player-id]
   (= 0 (get-in game [:players player-id :seat])))
 
+(defn- leave-table-state [state game-id player-id]
+  (if-let [game (get-in state [:games game-id])]
+    (let [player (get-in game [:players player-id])]
+      (cond
+        (nil? player)
+        [state {:error :not-a-player}]
+
+        (not (table-leavable? game))
+        [state {:error :game-in-progress}]
+
+        (host? game player-id)
+        [(update state :games dissoc game-id)
+         {:ended? true
+          :subscribers (:subscribers game)
+          :event (table-ended game-id)}]
+
+        :else
+        [(assoc-in state [:games game-id] (remove-player game player-id))
+         {:left? true
+          :player-id player-id}]))
+    [state {:error :unknown-game}]))
+
+(defn leave-table! [store game-id player-id]
+  (let [result (swap-result! store
+                             #(leave-table-state % game-id player-id))]
+    (cond
+      (:ended? result)
+      (pubsub/publish (:subscribers result) (:event result))
+
+      (:left? result)
+      (emit! store game-id (player-left game-id result)))
+    (dissoc result :subscribers :event)))
+
+(defn get-game [store game-id]
+  (get-in @store [:games game-id]))
+
 (defn subscribe! [store game-id subscriber-id handler]
-  (swap! store update-in [:games game-id :subscribers]
-         #(pubsub/subscribe (or % {}) subscriber-id handler))
+  (swap! store (fn [state]
+                 (if (get-in state [:games game-id])
+                   (update-in state [:games game-id :subscribers]
+                              #(pubsub/subscribe (or % {}) subscriber-id handler))
+                   state)))
   subscriber-id)
 
 (defn unsubscribe! [store game-id subscriber-id]
-  (swap! store update-in [:games game-id :subscribers]
-         #(pubsub/unsubscribe (or % {}) subscriber-id))
+  (swap! store (fn [state]
+                 (if (get-in state [:games game-id])
+                   (update-in state [:games game-id :subscribers]
+                              #(pubsub/unsubscribe (or % {}) subscriber-id))
+                   state)))
   subscriber-id)
 
 (defn- action-events
@@ -153,6 +230,23 @@
       [game decision]
       [(assoc game :state (events/apply-events current-state decision))
        decision])))
+
+(defn- start-game-command [player-count deck]
+  {:type :start-game
+   :player-count player-count
+   :deck deck})
+
+(defn- start-table [game deck]
+  (let [player-count (count (:players game))
+        command (start-game-command player-count deck)
+        decision (commands/decide nil command)]
+    (if (= :domain-error (:type decision))
+      [game decision command]
+      [(assoc game
+              :state (events/apply-events nil decision)
+              :started-once? true)
+       decision
+       command])))
 
 (defn- submit-action-state [state game-id command]
   (if-let [game (get-in state [:games game-id])]
@@ -202,18 +296,32 @@
     {:error (:reason events)}
     {:events events}))
 
+(defn- start-game-error [game player-id]
+  (cond
+    (nil? game) :unknown-game
+    (not (host? game player-id)) :not-host
+    (< (count (:players game)) 2) :not-enough-players
+    (game-in-progress? game) :invalid-start-game))
+
+(defn- start-game-state [state game-id player-id deck]
+  (let [game (get-in state [:games game-id])]
+    (if-let [reason (start-game-error game player-id)]
+      [state {:events (domain-error reason)}]
+      (let [[next-game decision command] (start-table game deck)]
+        [(assoc-in state [:games game-id] next-game)
+         {:events decision
+          :command command}]))))
+
 (defn start-game! [store game-id player-id {:keys [deck]}]
   (let [game (get-game store game-id)]
-    (cond
-      (nil? game) {:error :unknown-game}
-      (not (host? game player-id)) {:error :not-host}
-      (< (count (:players game)) 2) {:error :not-enough-players}
-      :else
-      (let [player-count (count (:players game))]
-        (normalize (submit-action! store game-id
-                                   {:type :start-game
-                                    :player-count player-count
-                                    :deck (or deck (valid-start-deck player-count))}))))))
+    (if-let [reason (start-game-error game player-id)]
+      {:error reason}
+      (let [deck (or deck (valid-start-deck (count (:players game))))
+            result (swap-result! store
+                                 #(start-game-state % game-id player-id deck))]
+        (when (vector? (:events result))
+          (emit-action-events! store game-id (:command result) (:events result)))
+        (normalize result)))))
 
 (defn play-card! [store game-id player-id card declared-suit]
   (normalize (submit-player-action! store game-id player-id

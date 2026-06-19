@@ -24,6 +24,7 @@
    :not-host "only the host can start the game"
    :not-enough-players "at least two players are needed"
    :invalid-start-game "the game cannot be started"
+   :game-in-progress "the game is in progress"
    :unknown-game "no such game"
    :game-full "the game is full"
    :game-already-started "the game has already started"
@@ -37,6 +38,7 @@
   (html
    (case phase
      :waiting [:p.status (str "waiting for players — " player-count " joined")]
+     :between-games [:p.status (str "between games — " player-count " seated")]
      :playing (if your-turn?
                 [:p.status.your-turn "your turn"]
                 [:p.status (str current-name "'s turn")])
@@ -46,20 +48,35 @@
 
 ;; game-board fragment
 
-(defn- waiting-room [{:keys [game-id players can-start?]}]
+(defn- leave-form [game-id]
+  [:form.table-action {:action (paths/leave game-id) :method "post"}
+   [:button {:type "submit"} "leave table"]])
+
+(defn- start-button [{:keys [game-id start-label]}]
+  [:button {:hx-post (paths/start game-id)
+            :hx-target "#status"}
+   start-label])
+
+(defn- table-actions [{:keys [can-start? can-leave?] :as vm}]
+  (when (or can-start? can-leave?)
+    [:div.actions.table-actions
+     (when can-start?
+       (start-button vm))
+     (when can-leave?
+       (leave-form (:game-id vm)))]))
+
+(defn- waiting-room [{:keys [phase players] :as vm}]
   [:div.panel
-   [:h2 "waiting room"]
+   [:h2 (if (= :between-games phase) "between games" "waiting room")]
    [:ul.player-list
     (for [player players]
       [:li (:name player) (when (:host? player) [:span.host-mark "host"])])]
-   (when can-start?
-     [:button {:hx-post (paths/start game-id)
-               :hx-target "#status"}
-      "start game"])
-   [:p.share
-    "share this page's link to invite players"
-    [:button {:onclick "navigator.clipboard.writeText(window.location.href)"}
-     "copy link"]]])
+   (table-actions vm)
+   (when (= :waiting phase)
+     [:p.share
+      "share this page's link to invite players"
+      [:button {:onclick "navigator.clipboard.writeText(window.location.href)"}
+       "copy link"]])])
 
 (defn- opponent [{:keys [card-count current?] :as player}]
   [:div.opponent {:class (when current? "current")}
@@ -70,7 +87,7 @@
    [:div.count (str card-count " cards")]])
 
 (defn- table [{:keys [players viewer-seat top-card top-code active-suit draw-count
-                      winner-name blocked? phase]}]
+                      winner-name blocked? phase] :as vm}]
   [:div.table
    [:div.opponents
     (for [player (remove :you? players)]
@@ -88,11 +105,11 @@
    (when (= :finished phase)
      [:p.winner (if blocked? "game blocked — no winner" (str winner-name " wins"))])
    (when (and (= :finished phase) viewer-seat)
-     [:p.spectator-note [:a.button {:href "/"} "play another game"]])])
+     (table-actions vm))])
 
 (defn board-html [vm]
   (html
-   (if (= :waiting (:phase vm))
+   (if (contains? #{:waiting :between-games} (:phase vm))
      (waiting-room vm)
      (table vm))))
 
@@ -163,7 +180,7 @@
    (html
     (cond
       (and (= :waiting phase) (nil? viewer-seat)) (join-form vm)
-      (= :waiting phase) [:p.spectator-note "waiting for the host to deal"]
+      (contains? #{:waiting :between-games} phase) [:p.spectator-note "waiting for the host to deal"]
       (nil? viewer-seat) [:p.spectator-note "spectating — you watch, they play"]
       (declarable? vm declare-code) (suit-picker game-id declare-code)
       :else (hand-cards vm)))))
@@ -200,13 +217,15 @@
 (defn game-page [vm]
   (layout "Crazy Eights"
           [:div {:hx-ext "sse"
-                 :sse-connect (paths/events (:game-id vm))}
+                 :sse-connect (paths/events (:game-id vm))
+                 :sse-close "table-ended"}
            [:div {:id "status" :sse-swap "status"}
             (h/raw (status-html vm))]
            [:div {:id "game-board" :sse-swap "game-board"}
             (h/raw (board-html vm))]
            [:div {:id "player-hand" :sse-swap "player-hand"}
-            (h/raw (hand-html vm))]]))
+            (h/raw (hand-html vm))]
+           [:div {:id "table-ended" :sse-swap "table-ended" :hidden true}]]))
 
 (defn not-found-page []
   (layout "Crazy Eights"

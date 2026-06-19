@@ -24,6 +24,8 @@
 
 (def playing-game (assoc waiting-game :state playing-state))
 
+(def between-games (assoc waiting-game :started-once? true))
+
 (defn- host-view [] (vm/game-view playing-game "game-0-player-0"))
 
 (deftest fragments-are-single-line
@@ -43,9 +45,11 @@
   (let [html (views/game-page (host-view))]
     (is (str/includes? html "hx-ext=\"sse\""))
     (is (str/includes? html "sse-connect=\"/games/game-0/events\""))
+    (is (str/includes? html "sse-close=\"table-ended\""))
     (doseq [target ["status" "game-board" "player-hand"]]
       (is (str/includes? html (str "sse-swap=\"" target "\"")))
       (is (str/includes? html (str "id=\"" target "\""))))
+    (is (str/includes? html "sse-swap=\"table-ended\""))
     (is (str/includes? html "/assets/vendor/htmx.min.js"))))
 
 (deftest waiting-board-shows-players-and-host-start
@@ -54,7 +58,20 @@
     (is (str/includes? host-html "anna"))
     (is (str/includes? host-html "ben"))
     (is (str/includes? host-html "hx-post=\"/games/game-0/start\""))
+    (is (str/includes? host-html "action=\"/games/game-0/leave\""))
     (is (not (str/includes? guest-html "hx-post=\"/games/game-0/start\"")))))
+
+(deftest between-games-board-shows-current-table-not-invite-flow
+  (let [host-html (views/board-html (vm/game-view between-games "game-0-player-0"))
+        guest-html (views/board-html (vm/game-view between-games "game-0-player-1"))
+        stranger-hand (views/hand-html (vm/game-view between-games nil))]
+    (is (str/includes? host-html "between games"))
+    (is (str/includes? host-html "start new game"))
+    (is (str/includes? host-html "action=\"/games/game-0/leave\""))
+    (is (str/includes? guest-html "action=\"/games/game-0/leave\""))
+    (is (not (str/includes? guest-html "hx-post=\"/games/game-0/start\"")))
+    (is (not (str/includes? host-html "copy link")))
+    (is (not (str/includes? stranger-hand "action=\"/games/game-0/join\"")))))
 
 (deftest waiting-hand-shows-join-form-for-strangers
   (let [stranger (views/hand-html (vm/game-view waiting-game nil))
@@ -103,5 +120,8 @@
   (let [finished (assoc playing-game :state (assoc playing-state :status :finished :winner 1
                                                    :players [{:hand [(model/card :queen :clubs)]}
                                                              {:hand []}]))]
-    (is (str/includes? (views/status-html (vm/game-view finished nil)) "ben")))
+    (is (str/includes? (views/status-html (vm/game-view finished nil)) "ben"))
+    (let [html (views/board-html (vm/game-view finished "game-0-player-0"))]
+      (is (str/includes? html "start new game"))
+      (is (str/includes? html "action=\"/games/game-0/leave\""))))
   (is (str/includes? (views/error-status-html :not-current-player) "not your turn")))

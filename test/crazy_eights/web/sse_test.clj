@@ -68,3 +68,18 @@
       (is (str/includes?
            (sse/fragment-frames {:status "multi\nline"})
            "data: multiline")))))
+
+(deftest table-ended-event-redirects-and-closes-game-stream
+  (let [store (app/create-store)
+        {:keys [game-id]} (app/create-game! store)
+        p1 (app/join-game! store game-id "anna")
+        sent (atom [])
+        channel (recording-channel sent)
+        render (fn [] {:status "<p>s</p>"})]
+    (sse/game-on-open store game-id render channel)
+    (app/leave-table! store game-id (:player-id p1))
+    (is (some #(and (string? %)
+                    (str/includes? % "event: table-ended")
+                    (str/includes? % "window.location.href='/'"))
+              @sent))
+    (is (str/includes? (sse/table-ended-frame) "event: table-ended"))))

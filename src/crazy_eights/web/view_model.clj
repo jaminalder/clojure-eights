@@ -4,8 +4,9 @@
   (:require [crazy_eights.domain.model :as model]
             [crazy_eights.web.cards :as cards]))
 
-(defn- phase [{:keys [state]}]
+(defn- phase [{:keys [state started-once?]}]
   (cond
+    (and (nil? state) started-once?) :between-games
     (nil? state) :waiting
     (= :finished (:status state)) :finished
     :else :playing))
@@ -50,11 +51,20 @@
 (defn- playable-hand? [hand]
   (boolean (some :playable? hand)))
 
-(defn- can-start? [state viewer player-count]
-  (boolean (and (nil? state)
+(defn- can-start? [phase-value viewer player-count]
+  (boolean (and (contains? #{:waiting :between-games :finished} phase-value)
                 viewer
                 (= 0 (:seat viewer))
                 (<= 2 player-count))))
+
+(defn- start-label [phase-value]
+  (if (= :waiting phase-value)
+    "start game"
+    "start new game"))
+
+(defn- can-leave? [phase-value viewer]
+  (boolean (and viewer
+                (contains? #{:waiting :between-games :finished} phase-value))))
 
 (defn- can-draw? [state your-turn? playable?]
   (boolean (and your-turn?
@@ -78,18 +88,21 @@
         viewer-seat (:seat viewer)
         names (seat->name game)
         player-count (count (:players game))
+        phase-value (phase game)
         your-turn? (viewer-turn? state viewer-seat)
         hand (when (and state viewer-seat) (hand-view state viewer-seat your-turn?))
         playable? (playable-hand? hand)
         draw-pile (:draw-pile state)]
     {:game-id (:game-id game)
-     :phase (phase game)
+     :phase phase-value
      :players (players-view game viewer-seat)
      :player-count player-count
      :viewer-seat viewer-seat
      :viewer-name (:name viewer)
      :host? (boolean (and viewer (= 0 viewer-seat)))
-     :can-start? (can-start? state viewer player-count)
+     :can-start? (can-start? phase-value viewer player-count)
+     :start-label (start-label phase-value)
+     :can-leave? (can-leave? phase-value viewer)
      :top-card (top-card state)
      :top-code (some-> state top-card cards/card->code)
      :active-suit (:active-suit state)

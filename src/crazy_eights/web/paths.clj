@@ -8,5 +8,6 @@
 (defn play [id] (str (game id) "/play"))
 (defn draw [id] (str (game id) "/draw"))
 (defn pass [id] (str (game id) "/pass"))
+(defn leave [id] (str (game id) "/leave"))
 (defn hand [id] (str (game id) "/hand"))
 (defn events [id] (str (game id) "/events"))
