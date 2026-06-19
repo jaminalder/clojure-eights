@@ -154,7 +154,7 @@
          "pass"])])])
 
 (defn- declarable? [vm declare-code]
-  (some #(and (= declare-code (:code %)) (:eight? %) (:playable? %))
+  (some #(and (= declare-code (:code %)) (:declarable? %))
         (:hand vm)))
 
 (defn hand-html

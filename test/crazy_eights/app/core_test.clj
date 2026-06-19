@@ -18,6 +18,15 @@
     (is (= #{(:player-id p1) (:player-id p2)}
            (set (keys (:players game)))))))
 
+(deftest host-game-creates-game-and-seats-host
+  (let [store (app/create-store)
+        result (app/host-game! store "anna")
+        game (app/get-game store (:game-id result))]
+    (is (= "game-0" (:game-id result)))
+    (is (= "game-0-player-0" (:player-id result)))
+    (is (= 0 (:seat result)))
+    (is (= "anna" (get-in game [:players (:player-id result) :name])))))
+
 (deftest host-is-first-seat
   (let [store (app/create-store)
         {:keys [game-id]} (app/create-game! store)
@@ -48,6 +57,12 @@
       (app/join-game! store game-id))
     (is (= {:error :game-full}
            (app/join-game! store game-id)))))
+
+(deftest join-game-rejects-unknown-game
+  (let [store (app/create-store)]
+    (is (= {:error :unknown-game}
+           (app/join-game! store "missing" "anna")))
+    (is (empty? (:games @store)))))
 
 (deftest join-game-rejects-after-start
   (let [store (app/create-store)

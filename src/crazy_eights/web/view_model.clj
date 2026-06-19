@@ -30,48 +30,74 @@
 
 (defn- hand-view [state seat your-turn?]
   (mapv (fn [card]
-          {:card card
-           :code (cards/card->code card)
-           :eight? (model/requires-declared-suit? card)
-           :playable? (boolean (and your-turn? (model/playable-card? state card)))})
+          (let [playable? (boolean (and your-turn? (model/playable-card? state card)))
+                eight? (model/requires-declared-suit? card)]
+            {:card card
+             :code (cards/card->code card)
+             :eight? eight?
+             :playable? playable?
+             :declarable? (boolean (and playable? eight?))}))
         (get-in state [:players seat :hand])))
+
+(defn- in-progress? [state]
+  (= :in-progress (:status state)))
+
+(defn- viewer-turn? [state viewer-seat]
+  (boolean (and (in-progress? state)
+                viewer-seat
+                (model/current-player? state viewer-seat))))
+
+(defn- playable-hand? [hand]
+  (boolean (some :playable? hand)))
+
+(defn- can-start? [state viewer player-count]
+  (boolean (and (nil? state)
+                viewer
+                (= 0 (:seat viewer))
+                (<= 2 player-count))))
+
+(defn- can-draw? [state your-turn? playable?]
+  (boolean (and your-turn?
+                (not playable?)
+                (or (seq (:draw-pile state))
+                    (model/reshuffleable? state)))))
+
+(defn- can-pass? [state your-turn? playable?]
+  (boolean (and your-turn?
+                (not playable?)
+                (empty? (:draw-pile state))
+                (not (model/reshuffleable? state)))))
+
+(defn- top-card [state]
+  (when state
+    (model/top-discard (:discard-pile state))))
 
 (defn game-view [game viewer-id]
   (let [state (:state game)
         viewer (get-in game [:players viewer-id])
         viewer-seat (:seat viewer)
         names (seat->name game)
-        in-progress? (= :in-progress (:status state))
-        your-turn? (boolean (and in-progress?
-                                 viewer-seat
-                                 (= viewer-seat (:current-player state))))
+        player-count (count (:players game))
+        your-turn? (viewer-turn? state viewer-seat)
         hand (when (and state viewer-seat) (hand-view state viewer-seat your-turn?))
-        playable? (some :playable? hand)
+        playable? (playable-hand? hand)
         draw-pile (:draw-pile state)]
     {:game-id (:game-id game)
      :phase (phase game)
      :players (players-view game viewer-seat)
-     :player-count (count (:players game))
+     :player-count player-count
      :viewer-seat viewer-seat
      :viewer-name (:name viewer)
      :host? (boolean (and viewer (= 0 viewer-seat)))
-     :can-start? (boolean (and (nil? state)
-                               viewer
-                               (= 0 viewer-seat)
-                               (<= 2 (count (:players game)))))
-     :top-card (when state (model/top-discard (:discard-pile state)))
-     :top-code (when state (cards/card->code (model/top-discard (:discard-pile state))))
+     :can-start? (can-start? state viewer player-count)
+     :top-card (top-card state)
+     :top-code (some-> state top-card cards/card->code)
      :active-suit (:active-suit state)
      :draw-count (when state (count draw-pile))
-     :current-name (when in-progress? (names (:current-player state)))
+     :current-name (when (in-progress? state) (names (:current-player state)))
      :your-turn? your-turn?
      :hand hand
-     :can-draw? (boolean (and your-turn?
-                              (not playable?)
-                              (or (seq draw-pile) (model/reshuffleable? state))))
-     :can-pass? (boolean (and your-turn?
-                              (not playable?)
-                              (empty? draw-pile)
-                              (not (model/reshuffleable? state))))
+     :can-draw? (can-draw? state your-turn? playable?)
+     :can-pass? (can-pass? state your-turn? playable?)
      :winner-name (when (= :finished (:status state)) (names (:winner state)))
      :blocked? (boolean (and (= :finished (:status state)) (nil? (:winner state))))}))

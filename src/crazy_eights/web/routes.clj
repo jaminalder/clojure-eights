@@ -70,11 +70,13 @@
   (if error
     {:error error}
     (case (:type command)
+      :create-game (app/host-game! store (:name command))
       :join-game (app/join-game! store game-id (:name command))
       :start-game (app/start-game! store game-id player-id {})
       :play-card (app/play-card! store game-id player-id card declared-suit)
       :draw-card (app/draw-card! store game-id player-id)
-      :pass-turn (app/pass-turn! store game-id player-id))))
+      :pass-turn (app/pass-turn! store game-id player-id)
+      {:error :unknown-command})))
 
 (defn- status-response
   "An action result becomes the status fragment: errors privately for the
@@ -101,6 +103,52 @@
           command (command-fn game-id viewer (:params request))]
       (status-response store game-id viewer (run-use-case store command)))))
 
+(defn- create-game-handler [store]
+  (fn [request]
+    (let [{:keys [game-id player-id]} (run-use-case
+                                       store
+                                       (web-commands/create-game-command (:params request)))]
+      (see-other (paths/game game-id) (player-cookie game-id player-id)))))
+
+(defn- join-game-response [game-id result]
+  (cond
+    (= :unknown-game (:error result))
+    (not-found-html)
+
+    (:player-id result)
+    (see-other (paths/game game-id)
+               (player-cookie game-id (:player-id result)))
+
+    :else
+    (see-other (paths/game game-id))))
+
+(defn- join-game-handler [store]
+  (fn [request]
+    (let [game-id (game-id-of request)
+          command (web-commands/join-game-command game-id (:params request))]
+      (join-game-response game-id (run-use-case store command)))))
+
+(defn- start-page-handler [_request]
+  (html-response 200 (views/start-page)))
+
+(defn- game-page-response [view _request]
+  (html-response 200 (views/game-page view)))
+
+(defn- hand-fragment-response [view request]
+  (html-response 200 (views/hand-html
+                      view
+                      {:declare-code (get-in request [:params "declare"])})))
+
+(defn- game-events-handler [store]
+  (fn [request]
+    (let [game-id (game-id-of request)
+          viewer (viewer-id store game-id request)]
+      (if (app/get-game store game-id)
+        (sse/game-events-response store game-id
+                                  #(fragments/game-fragments store game-id viewer)
+                                  request)
+        (json-response 404 {:error "unknown game"})))))
+
 (defn- game-query-handler
   "Resolves the game or replies 404; otherwise renders (render view request)."
   [store render]
@@ -112,29 +160,13 @@
 
 (defn- game-routes [store]
   [["/"
-    {:get (fn [_request]
-            (html-response 200 (views/start-page)))}]
+    {:get start-page-handler}]
    ["/games"
-    {:post (fn [request]
-             (let [command (web-commands/create-game-command (:params request))
-                   {:keys [game-id]} (app/create-game! store)
-                   {:keys [player-id]} (app/join-game! store game-id (:name command))]
-               (see-other (paths/game game-id) (player-cookie game-id player-id))))}]
+    {:post (create-game-handler store)}]
    ["/games/:id"
-    {:get (game-query-handler store
-                              (fn [view _request]
-                                (html-response 200 (views/game-page view))))}]
+    {:get (game-query-handler store game-page-response)}]
    ["/games/:id/join"
-    {:post (fn [request]
-             (let [game-id (game-id-of request)
-                   command (web-commands/join-game-command game-id (:params request))
-                   result (when (app/get-game store game-id)
-                            (run-use-case store command))]
-               (cond
-                 (nil? result) (not-found-html)
-                 (:player-id result) (see-other (paths/game game-id)
-                                                 (player-cookie game-id (:player-id result)))
-                 :else (see-other (paths/game game-id)))))}]
+    {:post (join-game-handler store)}]
    ["/games/:id/start"
     {:post (game-action-handler store web-commands/start-game-command)}]
    ["/games/:id/play"
@@ -144,20 +176,32 @@
    ["/games/:id/pass"
     {:post (game-action-handler store web-commands/pass-turn-command)}]
    ["/games/:id/hand"
-    {:get (game-query-handler store
-                              (fn [view request]
-                                (html-response 200 (views/hand-html
-                                                    view
-                                                    {:declare-code (get-in request [:params "declare"])}))))}]
+    {:get (game-query-handler store hand-fragment-response)}]
    ["/games/:id/events"
-    {:get (fn [request]
-            (let [game-id (game-id-of request)
-                  viewer (viewer-id store game-id request)]
-              (if (app/get-game store game-id)
-                (sse/game-events-response store game-id
-                                          #(fragments/game-fragments store game-id viewer)
-                                          request)
-                (json-response 404 {:error "unknown game"}))))}]])
+    {:get (game-events-handler store)}]])
+
+(defn- simulation-response [start! request]
+  (let [player-count (some-> (get-in request [:params "player-count"]) parse-long)]
+    (if (and player-count (<= 2 player-count model/max-player-count))
+      (let [{:keys [simulation-id]} (start! player-count)]
+        (json-response 202 {:simulation-id simulation-id}))
+      (json-response 400 {:error "invalid player-count"}))))
+
+(defn- simulation-sse-response [simulation-service run-simulation! simulation-id request]
+  (if (simulation/get-simulation simulation-service simulation-id)
+    (sse/sse-response simulation-service simulation-id request run-simulation!)
+    (json-response 404 {:error "unknown simulation"})))
+
+(defn- observer-handler [_request]
+  (html-response 200 (page/observer-page)))
+
+(defn- start-simulation-handler [start!]
+  (fn [request]
+    (simulation-response start! request)))
+
+(defn- simulation-events-handler [sse-response]
+  (fn [request]
+    (sse-response (get-in request [:path-params :id]) request)))
 
 (defn- simulation-routes [{:keys [simulation-service start! run-simulation! sse-response]}]
   (let [start! (or start!
@@ -166,23 +210,13 @@
                             (fn [simulation-id]
                               (future (simulation/run-to-completion! simulation-service simulation-id))))
         sse-response (or sse-response
-                         (fn [simulation-id request]
-                           (if (simulation/get-simulation simulation-service simulation-id)
-                             (sse/sse-response simulation-service simulation-id request run-simulation!)
-                             (json-response 404 {:error "unknown simulation"}))))]
+                         (partial simulation-sse-response simulation-service run-simulation!))]
     [["/observer"
-      {:get (fn [_request]
-              (html-response 200 (page/observer-page)))}]
+      {:get observer-handler}]
      ["/simulations"
-      {:post (fn [request]
-               (let [player-count (some-> (get-in request [:params "player-count"]) parse-long)]
-                 (if (and player-count (<= 2 player-count model/max-player-count))
-                   (let [{:keys [simulation-id]} (start! player-count)]
-                     (json-response 202 {:simulation-id simulation-id}))
-                   (json-response 400 {:error "invalid player-count"}))))}]
+      {:post (start-simulation-handler start!)}]
      ["/simulations/:id/events"
-      {:get (fn [request]
-              (sse-response (get-in request [:path-params :id]) request))}]]))
+      {:get (simulation-events-handler sse-response)}]]))
 
 (defn app [{:keys [store] :as config}]
   (let [store (or store (app/create-store))]

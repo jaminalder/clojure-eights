@@ -52,6 +52,8 @@
     (is (= [{:code "QC" :playable? true :eight? false}
             {:code "8D" :playable? true :eight? true}]
            (mapv #(select-keys % [:code :playable? :eight?]) (:hand view))))
+    (is (= [false true]
+           (mapv :declarable? (:hand view))))
     (testing "playable hand means no draw and no pass"
       (is (false? (:can-draw? view)))
       (is (false? (:can-pass? view))))))
