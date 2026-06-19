@@ -9,11 +9,14 @@ description: Use when editing Clojure, Lisp-style code, `deps.edn`, `.clj-kondo`
 
 Use this skill when working on Clojure code in this repository. It exists to keep edits idiomatic, data-oriented, composable, and easy for both humans and AI agents to read.
 
+This project combines Domain-Driven Design with bottom-up Lisp/Clojure design. DDD defines what language the software should speak. Lisp/Clojure design defines how that language grows inside the program.
+
 ## Lisp Principles
 
 - Prefer data and transformation over object modeling.
 - Keep the surface area small.
 - Preserve code-as-data clarity.
+- Grow a small internal domain language from simple functions and composition.
 - Use macros only when a function cannot do the job.
 
 ## Clojure Principles
@@ -22,15 +25,27 @@ Use this skill when working on Clojure code in this repository. It exists to kee
 - Separate values, state, and effects.
 - Prefer maps, vectors, sets, and seqs over custom types unless the type buys something concrete.
 - Use namespaced data and direct function boundaries.
+- Prefer boring, explicit, testable functions over clever abstraction.
 - Optimize for REPL-aided development.
 
 ## Repo Rules
 
 - Code is the primary specification.
 - Tests are executable specification.
+- Preserve the domain/application/web separation.
+- Put domain rules in the domain, not in HTTP handlers or Hiccup views.
 - Scenario EDN exists only when executed by tests.
 - Non-code artifacts must justify themselves.
 - Avoid duplicate descriptive layers.
+
+## Domain Design
+
+- Start behavior changes by naming the domain concept.
+- Build small composable domain primitives.
+- Model domain behavior as immutable data plus pure functions.
+- Compose larger workflows from smaller transformations.
+- Let abstractions emerge from repeated domain code.
+- Avoid rule engines, abstract state machines, macro DSLs, protocols, multimethods, and framework-like abstractions unless concrete repetition proves the need.
 
 ## Naming And Boundaries
 

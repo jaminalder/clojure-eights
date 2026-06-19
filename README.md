@@ -4,7 +4,14 @@ Multiplayer Crazy Eights with a pure Clojure domain core.
 
 ## Purpose
 
-This repository models Crazy Eights as immutable data and pure functions first, then wraps that domain in a thin in-memory application layer and a server-rendered multiplayer web UI (htmx + SSE).
+This repository models Crazy Eights with two complementary design ideas:
+
+- Domain-Driven Design defines the semantic model: the ubiquitous language, domain concepts, invariants, commands, events, state transitions, and separation between domain, application, infrastructure, and web concerns.
+- Bottom-up Lisp/Clojure design defines the implementation style: immutable data, pure functions, small composable domain primitives, and workflows grown from simple transformations.
+
+DDD answers "what language should the software speak?" The Lisp/SICP approach answers "how do we grow that language inside the program?"
+
+The result should be a small executable language for Crazy Eights, not a CRUD model or a framework-shaped rule engine.
 
 ## Current Scope
 
@@ -40,6 +47,16 @@ The code is the primary specification.
 
 The domain now covers one complete playable game of Crazy Eights without scoring or multi-round match flow.
 
+## Design Style
+
+DDD grounds the model in the real domain language. Bottom-up Clojure design keeps the implementation small, composable, expressive, and executable.
+
+The domain language includes cards, hands, turns, legal moves, winners, and game endings. Domain functions should read like domain statements: `play-card`, `draw-card`, `valid-play?`, `advance-turn`, and `game-over?`.
+
+The command language includes starting a game, playing a card, drawing a card, and passing a turn. The event/result language includes cards played, cards drawn, turns advanced, games ended, and invalid moves.
+
+Prefer simple functions and data transformations first. Let larger workflows emerge by composition. Do not introduce rule engines, overly abstract state machines, macro DSLs, protocols, multimethods, or generic framework-like abstractions unless repeated concrete code proves they are needed.
+
 ## Constraints
 
 - no database
@@ -52,6 +69,20 @@ In-memory application and simulation state lives outside the domain layer.
 ## Domain Purity
 
 Domain namespaces must not depend on HTTP, persistence, logging, config, filesystem, time, randomness, or mutable runtime primitives.
+
+The same domain behavior must be testable without HTTP, HTML, sessions, routes, or a running server.
+
+## Web Layer
+
+The web layer is an adapter/detail, not the owner of game behavior.
+
+- HTTP handlers translate requests into application commands.
+- The application layer orchestrates command handling and in-memory lifecycle.
+- The domain layer enforces rules and produces new state/results.
+- View-model functions project domain state into UI-specific data such as playable cards, available actions, current player, and game status.
+- Hiccup views render already-prepared view models with minimal logic.
+
+The HTTP language is routes, params, form posts, and responses. It should not replace the domain, command, event/result, or view languages inside the system.
 
 ## Tests
 

@@ -43,10 +43,38 @@ Three layers, dependency direction strictly `web → app → domain`:
 State lives in atoms at the app/web boundary only; everything below is values in,
 values out.
 
+Design balance: DDD defines the language the software should speak; bottom-up
+Clojure design defines how that language grows inside the program. The domain
+layer should read as a small executable Crazy Eights language, not as CRUD
+operations or framework ceremony. Prefer small pure functions such as
+`play-card`, `draw-card`, `valid-play?`, `advance-turn`, and `game-over?`, then
+compose larger workflows from those transformations.
+
+Keep these languages distinct:
+
+- domain: cards, hands, turns, legal moves, winners
+- command: start game, play card, draw card, pass turn
+- event/result: card played, card drawn, turn advanced, game ended, invalid move
+- view: playable cards, available actions, current player, game status
+- HTTP: routes, params, form posts, responses
+
+The web layer is an adapter. HTTP handlers translate requests into commands;
+the app layer orchestrates command handling; the domain enforces rules and
+returns state/results; view-model functions prepare UI data; hiccup views render
+prepared view models with minimal logic. Domain behavior must remain testable
+without HTTP, HTML, sessions, routes, or a running server.
+
 ## Workflow
 
 - Test-first: extend or add the failing test before changing behavior. Tests are the
   executable specification.
+- When adding behavior, name the domain concept first, implement the smallest
+  pure functions that express it, compose larger behavior from those functions,
+  then expose it through app handlers and web routes.
+- Do not put domain rules in HTTP handlers or hiccup views.
+- Do not introduce macros, protocols, multimethods, rule engines, abstract state
+  machines, or framework-like abstractions unless repeated concrete code proves
+  the need.
 - After every change run `clojure -M:test` and `clojure -M:lint`; both must be green.
 - For any live web change, follow the `web-verification` skill before claiming it
   works (curl first, then browser, then clean shutdown).
