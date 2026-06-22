@@ -39,6 +39,9 @@
     (let [summary (op/games)]
       (is (= [waiting-id] (mapv :game-id (:waiting summary))))
       (is (= [started-id] (mapv :game-id (:in-progress summary))))
+      (is (= (str "/games/" waiting-id "/observer/"
+                  (:observer-id (app/get-game runtime/store waiting-id)))
+             (get-in summary [:waiting 0 :observer-path])))
       (is (= "waiting-host" (get-in summary [:waiting 0 :players 0 :name])))
       (is (= 2 (get-in summary [:in-progress 0 :player-count]))))))
 

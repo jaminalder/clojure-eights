@@ -19,6 +19,16 @@
     (is (= #{(:player-id p1) (:player-id p2)}
            (set (keys (:players game)))))))
 
+(deftest create-game-assigns-observer-id
+  (let [store (app/create-store)
+        {first-id :game-id} (app/create-game! store)
+        {second-id :game-id} (app/create-game! store)
+        first-observer (:observer-id (app/get-game store first-id))
+        second-observer (:observer-id (app/get-game store second-id))]
+    (is (string? first-observer))
+    (is (uuid? (parse-uuid first-observer)))
+    (is (not= first-observer second-observer))))
+
 (deftest host-game-creates-game-and-seats-host
   (let [store (app/create-store)
         result (app/host-game! store "anna")

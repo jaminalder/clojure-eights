@@ -10,3 +10,7 @@
     {:status (views/status-html view)
      :game-board (views/board-html view)
      :player-hand (views/hand-html view)}))
+
+(defn observer-fragments [store game-id]
+  (let [view (view-model/observer-view (app/get-game store game-id))]
+    {:observer-table (views/observer-table-html view)}))

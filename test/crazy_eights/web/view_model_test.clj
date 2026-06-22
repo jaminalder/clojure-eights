@@ -115,6 +115,19 @@
     (is (nil? (:hand view)))
     (is (= [2 1] (mapv :card-count (:players view))))))
 
+(deftest observer-view-shows-all-player-hands
+  (let [view (vm/observer-view playing-game)]
+    (is (= :playing (:phase view)))
+    (is (= "game-0" (:game-id view)))
+    (is (= "QS" (:top-code view)))
+    (is (= :spades (:active-suit view)))
+    (is (= [{:name "anna" :current? true :card-count 2 :hand ["QC" "8D"]}
+            {:name "ben" :current? false :card-count 1 :hand ["2H"]}]
+           (mapv #(-> %
+                      (select-keys [:name :current? :card-count :hand])
+                      (update :hand (fn [hand] (mapv :code hand))))
+                 (:players view))))))
+
 (deftest finished-views
   (let [won (assoc playing-game :state (assoc playing-state
                                               :status :finished

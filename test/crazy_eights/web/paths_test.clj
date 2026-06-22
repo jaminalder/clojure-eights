@@ -11,4 +11,7 @@
   (is (= "/games/game-0/pass" (paths/pass "game-0")))
   (is (= "/games/game-0/leave" (paths/leave "game-0")))
   (is (= "/games/game-0/hand" (paths/hand "game-0")))
-  (is (= "/games/game-0/events" (paths/events "game-0"))))
+  (is (= "/games/game-0/events" (paths/events "game-0")))
+  (is (= "/games/game-0/observer/token" (paths/observer "game-0" "token")))
+  (is (= "/games/game-0/observer/token/events"
+         (paths/observer-events "game-0" "token"))))

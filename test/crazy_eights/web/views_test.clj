@@ -52,6 +52,17 @@
     (is (str/includes? html "sse-swap=\"table-ended\""))
     (is (str/includes? html "/assets/vendor/htmx.min.js"))))
 
+(deftest observer-page-wires-sse-and-open-table-fragment
+  (let [view (vm/observer-view playing-game)
+        html (views/observer-page view "observer-token")]
+    (is (str/includes? html "hx-ext=\"sse\""))
+    (is (str/includes? html "sse-connect=\"/games/game-0/observer/observer-token/events\""))
+    (is (str/includes? html "sse-swap=\"observer-table\""))
+    (is (str/includes? html "id=\"observer-table\""))
+    (is (str/includes? html "/assets/cards/QC.svg"))
+    (is (str/includes? html "/assets/cards/8D.svg"))
+    (is (str/includes? html "/assets/cards/2H.svg"))))
+
 (deftest waiting-board-shows-players-and-host-start
   (let [host-html (views/board-html (vm/game-view waiting-game "game-0-player-0"))
         guest-html (views/board-html (vm/game-view waiting-game "game-0-player-1"))]
@@ -87,6 +98,17 @@
     (is (str/includes? html "ben"))
     (testing "opponent cards stay hidden"
       (is (not (str/includes? html "/assets/cards/2H.svg"))))))
+
+(deftest observer-table-shows-piles-and-all-hands
+  (let [html (views/observer-table-html (vm/observer-view playing-game))]
+    (is (str/includes? html "/assets/cards/QS.svg"))
+    (is (str/includes? html "/assets/cards/BACK.svg"))
+    (is (str/includes? html "anna"))
+    (is (str/includes? html "ben"))
+    (is (str/includes? html "/assets/cards/QC.svg"))
+    (is (str/includes? html "/assets/cards/8D.svg"))
+    (is (str/includes? html "/assets/cards/2H.svg"))
+    (is (not (str/includes? html "hx-post")))))
 
 (deftest hand-renders-playable-cards-as-actions
   (let [html (views/hand-html (host-view))]

@@ -113,6 +113,59 @@
      (waiting-room vm)
      (table vm))))
 
+;; observer table fragment
+
+(defn- observer-status [{:keys [phase player-count current-name winner-name blocked?]}]
+  [:p.status
+   (case phase
+     :waiting (str "observer table — waiting for players — " player-count " joined")
+     :between-games (str "observer table — between games — " player-count " seated")
+     :playing (str "observer table — " current-name "'s turn")
+     :finished (if blocked?
+                 "observer table — game blocked — no winner"
+                 (str "observer table — " winner-name " wins")))])
+
+(defn- observer-center [{:keys [top-card top-code active-suit draw-count]}]
+  [:div.center
+   [:div.pile
+    [:img {:src cards/back-image :alt "draw pile"}]
+    [:div.label (str draw-count " to draw")]]
+   [:div.pile
+    [:img {:src (cards/card->image top-card) :alt top-code}]
+    [:div.label "discard"]]
+   [:div.suit-chip "suit "
+    [:span {:class (cards/suit-color active-suit)}
+     (cards/suit-glyph active-suit)]]])
+
+(defn- observer-card [{:keys [card code]}]
+  [:img {:src (cards/card->image card) :alt code}])
+
+(defn- observer-player [{:keys [current? card-count hand] player-name :name}]
+  [:section.observer-player {:class (when current? "current")}
+   [:div.observer-player-title
+    [:span.name player-name]
+    (when current? [:span.turn-mark "turn"])
+    [:span.count (str card-count " cards")]]
+   [:div.observer-hand
+    (for [card hand]
+      (observer-card card))]])
+
+(defn observer-table-html [{:keys [phase players] :as vm}]
+  (html
+   [:div.observer-table
+    (observer-status vm)
+    (if (contains? #{:waiting :between-games} phase)
+      [:div.panel
+       [:h2 (if (= :between-games phase) "between games" "waiting room")]
+       [:ul.player-list
+        (for [player players]
+          [:li (:name player) (when (:host? player) [:span.host-mark "host"])])]]
+      [:div
+       (observer-center vm)
+       [:div.observer-players
+        (for [player players]
+          (observer-player player))]])]))
+
 ;; player-hand fragment
 
 (defn- join-form [{:keys [game-id]}]
@@ -225,6 +278,15 @@
             (h/raw (board-html vm))]
            [:div {:id "player-hand" :sse-swap "player-hand"}
             (h/raw (hand-html vm))]
+           [:div {:id "table-ended" :sse-swap "table-ended" :hidden true}]]))
+
+(defn observer-page [vm observer-id]
+  (layout "Crazy Eights Observer"
+          [:div {:hx-ext "sse"
+                 :sse-connect (paths/observer-events (:game-id vm) observer-id)
+                 :sse-close "table-ended"}
+           [:div {:id "observer-table" :sse-swap "observer-table"}
+            (h/raw (observer-table-html vm))]
            [:div {:id "table-ended" :sse-swap "table-ended" :hidden true}]]))
 
 (defn not-found-page []

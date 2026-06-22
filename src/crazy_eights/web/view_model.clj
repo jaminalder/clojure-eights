@@ -40,6 +40,12 @@
              :declarable? (boolean (and playable? eight?))}))
         (get-in state [:players seat :hand])))
 
+(defn- observer-hand-view [state seat]
+  (mapv (fn [card]
+          {:card card
+           :code (cards/card->code card)})
+        (get-in state [:players seat :hand])))
+
 (defn- in-progress? [state]
   (= :in-progress (:status state)))
 
@@ -112,5 +118,32 @@
      :hand hand
      :can-draw? (can-draw? state your-turn? playable?)
      :can-pass? (can-pass? state your-turn? playable?)
+     :winner-name (when (= :finished (:status state)) (names (:winner state)))
+     :blocked? (boolean (and (= :finished (:status state)) (nil? (:winner state))))}))
+
+(defn observer-view [game]
+  (let [state (:state game)
+        names (seat->name game)
+        phase-value (phase game)]
+    {:game-id (:game-id game)
+     :phase phase-value
+     :players (->> (:players game)
+                   vals
+                   (sort-by :seat)
+                   (mapv (fn [{:keys [seat] :as player}]
+                           {:seat seat
+                            :name (:name player)
+                            :host? (= 0 seat)
+                            :current? (and (in-progress? state)
+                                           (= seat (:current-player state)))
+                            :card-count (when state
+                                          (count (get-in state [:players seat :hand])))
+                            :hand (if state (observer-hand-view state seat) [])})))
+     :player-count (count (:players game))
+     :top-card (top-card state)
+     :top-code (some-> state top-card cards/card->code)
+     :active-suit (:active-suit state)
+     :draw-count (when state (count (:draw-pile state)))
+     :current-name (when (in-progress? state) (names (:current-player state)))
      :winner-name (when (= :finished (:status state)) (names (:winner state)))
      :blocked? (boolean (and (= :finished (:status state)) (nil? (:winner state))))}))

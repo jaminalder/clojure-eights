@@ -118,6 +118,7 @@
                 (fn [state]
                   (let [game-id (next-game-id state)
                         game {:game-id game-id
+                              :observer-id (str (random-uuid))
                               :state nil
                               :started-once? false
                               :next-player-number 0

@@ -94,6 +94,16 @@
 (defn- game-id-of [request]
   (get-in request [:path-params :id]))
 
+(defn- observer-id-of [request]
+  (get-in request [:path-params :observer-id]))
+
+(defn- observer-game [store request]
+  (let [game-id (game-id-of request)
+        observer-id (observer-id-of request)
+        game (app/get-game store game-id)]
+    (when (= observer-id (:observer-id game))
+      game)))
+
 (defn- game-action-handler
   "Runs (command-fn game-id viewer params) through the domain and replies with
   the actor's status fragment."
@@ -148,7 +158,24 @@
         (sse/game-events-response store game-id
                                   #(fragments/game-fragments store game-id viewer)
                                   request)
-        (json-response 404 {:error "unknown game"})))))
+         (json-response 404 {:error "unknown game"})))))
+
+(defn- observer-page-handler [store]
+  (fn [request]
+    (if-let [game (observer-game store request)]
+      (html-response 200
+                     (views/observer-page (view-model/observer-view game)
+                                          (observer-id-of request)))
+      (not-found-html))))
+
+(defn- observer-events-handler [store]
+  (fn [request]
+    (let [game-id (game-id-of request)]
+      (if (observer-game store request)
+        (sse/game-events-response store game-id
+                                  #(fragments/observer-fragments store game-id)
+                                  request)
+        (not-found-html)))))
 
 (defn- leave-table-handler [store]
   (fn [request]
@@ -189,9 +216,13 @@
    ["/games/:id/leave"
     {:post (leave-table-handler store)}]
    ["/games/:id/hand"
-    {:get (game-query-handler store hand-fragment-response)}]
+     {:get (game-query-handler store hand-fragment-response)}]
    ["/games/:id/events"
-    {:get (game-events-handler store)}]])
+    {:get (game-events-handler store)}]
+   ["/games/:id/observer/:observer-id"
+    {:get (observer-page-handler store)}]
+   ["/games/:id/observer/:observer-id/events"
+    {:get (observer-events-handler store)}]])
 
 (defn app [{:keys [store]}]
   (let [store (or store (app/create-store))]

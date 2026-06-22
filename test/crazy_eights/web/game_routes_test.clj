@@ -184,6 +184,29 @@
     (is (= 303 (:status join)))
     (is (= 2 (count (:players (app/get-game store game-id)))))))
 
+(deftest observer-page-requires-observer-id-and-shows-open-hands
+  (let [[store game-id] (started-game)
+        h (handler store)
+        observer-id (:observer-id (app/get-game store game-id))
+        good (h (request :get (str "/games/" game-id "/observer/" observer-id)))
+        bad (h (request :get (str "/games/" game-id "/observer/wrong")))]
+    (is (= 200 (:status good)))
+    (is (str/includes? (:body good) "sse-connect=\"/games/game-0/observer/"))
+    (is (str/includes? (:body good) "/assets/cards/QC.svg"))
+    (is (str/includes? (:body good) "/assets/cards/8D.svg"))
+    (is (str/includes? (:body good) "/assets/cards/2H.svg"))
+    (is (= 404 (:status bad)))))
+
+(deftest observer-events-route-requires-observer-id
+  (let [[store game-id] (started-game)
+        h (handler store)
+        observer-id (:observer-id (app/get-game store game-id))
+        good (h (request :get (str "/games/" game-id "/observer/" observer-id "/events")))
+        bad (h (request :get (str "/games/" game-id "/observer/wrong/events")))]
+    (is (= 406 (:status good)))
+    (is (= "" (:body good)))
+    (is (= 404 (:status bad)))))
+
 (deftest host-can-start-new-game-at-finished-table
   (let [[store game-id] (started-game)
         h (handler store)]

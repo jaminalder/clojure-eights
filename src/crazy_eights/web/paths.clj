@@ -11,3 +11,5 @@
 (defn leave [id] (str (game id) "/leave"))
 (defn hand [id] (str (game id) "/hand"))
 (defn events [id] (str (game id) "/events"))
+(defn observer [id observer-id] (str (game id) "/observer/" observer-id))
+(defn observer-events [id observer-id] (str (observer id observer-id) "/events"))

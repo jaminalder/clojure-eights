@@ -1,7 +1,8 @@
 (ns crazy_eights.operator
   (:require [crazy_eights.app.core :as app]
             [crazy_eights.app.logging :as logging]
-            [crazy_eights.runtime :as runtime]))
+            [crazy_eights.runtime :as runtime]
+            [crazy_eights.web.paths :as paths]))
 
 (defonce observer-state (atom {}))
 
@@ -18,6 +19,7 @@
 
 (defn- table-summary [game]
   {:game-id (:game-id game)
+   :observer-path (paths/observer (:game-id game) (:observer-id game))
    :status (table-status game)
    :player-count (count (:players game))
    :players (mapv player-summary
