@@ -18,9 +18,16 @@
   :sim-log {:extra-paths ["test"]
             :extra-deps {lambdaisland/kaocha {:mvn/version "1.91.1392"}}
             :main-opts ["-m" "crazy_eights.domain.simulation-runner"]}
-  :app-sim-log {:extra-paths ["test"]
-                :extra-deps {lambdaisland/kaocha {:mvn/version "1.91.1392"}}
-                :main-opts ["-m" "crazy_eights.app.simulation-runner"]}
-  :lint {:extra-deps {clj-kondo/clj-kondo {:mvn/version "2024.08.29"}}
-         :main-opts ["-m" "clj-kondo.main" "--lint" "src" "test"]}
-  :run-web {:main-opts ["-m" "crazy_eights.web.server"]}}}
+   :app-sim-log {:extra-paths ["test"]
+                 :extra-deps {lambdaisland/kaocha {:mvn/version "1.91.1392"}}
+                 :main-opts ["-m" "crazy_eights.app.simulation-runner"]}
+   :operator-web {:extra-deps {nrepl/nrepl {:mvn/version "1.3.1"}}
+                  :main-opts ["-m" "crazy_eights.runtime"]}
+   :nrepl-client {:extra-deps {nrepl/nrepl {:mvn/version "1.3.1"}}
+                  :main-opts ["-m" "nrepl.cmdline"
+                              "--connect"
+                              "--host"
+                              "127.0.0.1"]}
+   :lint {:extra-deps {clj-kondo/clj-kondo {:mvn/version "2024.08.29"}}
+          :main-opts ["-m" "clj-kondo.main" "--lint" "src" "test"]}
+   :run-web {:main-opts ["-m" "crazy_eights.web.server"]}}}

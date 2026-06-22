@@ -1,20 +1,16 @@
 (ns crazy_eights.web.server
-  (:require [crazy_eights.app.core :as app]
-            [crazy_eights.web.routes :as routes]
-            [org.httpkit.server :as http]))
+  (:require [crazy_eights.runtime :as runtime]))
 
-(defonce server (atom nil))
-
-(defn start! []
-  (let [store (app/create-store)
-        handler (routes/app {:store store})]
-    (reset! server (http/run-server handler {:port 8080}))
-    (println "server started on http://localhost:8080")))
+(defn start!
+  ([] (start! {}))
+  ([opts]
+   (let [result (runtime/start-web! opts)]
+     (when (= :started (:status result))
+       (println "server started on" (str "http://localhost:" (:port result))))
+     result)))
 
 (defn stop! []
-  (when-let [stop-server @server]
-    (stop-server)
-    (reset! server nil)))
+  (runtime/stop-web!))
 
 (defn -main [& _args]
   (start!)

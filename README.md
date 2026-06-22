@@ -124,6 +124,61 @@ clojure -M:run-web
 Then open `http://localhost:8080` to host a multiplayer game. Game state is
 in-memory only: a server restart forgets all games.
 
+## Operator REPL
+
+Normal web startup does not start a REPL:
+
+```bash
+clojure -M:run-web
+```
+
+For trusted operator access, start the web server and a local-only nREPL in the
+same JVM:
+
+```bash
+clojure -M:operator-web
+```
+
+This starts the web app on `http://localhost:8080`, starts nREPL bound to
+`127.0.0.1`, and writes `.nrepl-port`.
+
+In Neovim with Conjure, open a Clojure file in the project and connect to the
+port file with Conjure's `:CljConnectPortFile` command or the configured
+localleader mapping.
+
+Example operator forms:
+
+```clojure
+(require '[crazy_eights.operator :as op])
+
+(op/games)
+(op/game "game-0")
+(op/observe! "game-0")
+(op/observers)
+(op/unobserve-all!)
+```
+
+The operator REPL is trusted live-process access. You can also call lower-level
+app functions directly:
+
+```clojure
+(require '[crazy_eights.app.core :as app])
+(require '[crazy_eights.runtime :as runtime])
+
+(app/get-game runtime/store "game-0")
+@runtime/store
+```
+
+For production-style shell access, SSH into the server host and connect to the
+local nREPL port:
+
+```bash
+clojure -M:nrepl-client --port "$(cat .nrepl-port)"
+```
+
+Do not expose the nREPL port publicly. It is arbitrary code execution in the
+running JVM.
+
 The 52 card face SVGs under `resources/public/cards/` are Byron Knoll's
 public-domain vector playing cards; htmx is vendored under
 `resources/public/vendor/`.
