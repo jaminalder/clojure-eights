@@ -9,6 +9,7 @@
   --muted: #9db8a8;
   --danger: #e0a48f;
   --card-w: 92px;
+  --observer-card-w: 64px;
 }
 
 * { box-sizing: border-box; }
@@ -256,11 +257,11 @@ button:disabled:hover { background: transparent; color: var(--gold); }
 .observer-hand {
   display: flex;
   flex-wrap: wrap;
-  padding-left: calc(var(--card-w) * 0.3);
+  padding-left: calc(var(--observer-card-w) * 0.62);
 }
 .observer-hand img {
-  width: calc(var(--card-w) * 0.72);
-  margin-left: calc(var(--card-w) * -0.3);
+  width: var(--observer-card-w);
+  margin-left: calc(var(--observer-card-w) * -0.62);
   margin-bottom: 0.35rem;
   border-radius: 5px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
