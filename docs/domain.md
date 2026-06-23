@@ -63,7 +63,7 @@ It is responsible for:
 
 It is not responsible for HTTP, WebSocket, SSE, CLI I/O, auth, or persistence.
 
-Those concerns belong in future clients and transport layers around the application shell.
+Those concerns belong in clients and transport layers around the application shell.
 
 ## What Counts As Specification
 
@@ -71,9 +71,7 @@ Those concerns belong in future clients and transport layers around the applicat
 - unit and property tests in `test/crazy_eights/domain/`
 - executable scenario data in `resources/domain/scenarios/`
 
-The simulation test is additional confidence coverage for shuffled games, but the domain itself remains deterministic because every deck order is passed in explicitly.
-
-The application layer has its own full-game simulation coverage as well, proving the shell around the domain can manage a game end-to-end.
+Simulation coverage lives in `test/crazy_eights/simulation/` and exercises the app layer as a client. It is not domain or app-layer specification.
 
 Anything else should justify itself by affecting execution or preventing confusion.
 

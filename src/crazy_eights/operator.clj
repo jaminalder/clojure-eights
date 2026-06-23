@@ -1,7 +1,9 @@
 (ns crazy_eights.operator
   (:require [crazy_eights.app.core :as app]
             [crazy_eights.app.logging :as logging]
+            [crazy_eights.domain.model :as model]
             [crazy_eights.runtime :as runtime]
+            [crazy_eights.simulation.app :as simulation]
             [crazy_eights.web.paths :as paths]))
 
 (defonce observer-state (atom {}))
@@ -71,3 +73,26 @@
   (let [current (observers)]
     (run! #(unobserve! (:observer-id %)) current)
     {:stopped (count current)}))
+
+(defn- valid-simulation-player-count? [player-count]
+  (and (integer? player-count)
+       (<= 2 player-count model/max-player-count)))
+
+(defn- valid-delay-seconds? [delay-seconds]
+  (and (number? delay-seconds)
+       (not (neg? delay-seconds))))
+
+(defn start-sim [player-count delay-seconds]
+  (cond
+    (not (valid-simulation-player-count? player-count))
+    {:error :invalid-player-count}
+
+    (not (valid-delay-seconds? delay-seconds))
+    {:error :invalid-delay-seconds}
+
+    :else
+    (let [started (simulation/start-game! runtime/store player-count)
+          wait-fn (simulation/delay-fn delay-seconds)]
+      (future
+        (simulation/run-to-completion! runtime/store started {:delay-fn wait-fn}))
+      (assoc started :delay-seconds delay-seconds))))

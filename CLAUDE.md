@@ -8,8 +8,6 @@
 clojure -M:test                                              # full test suite
 clojure -M:test --focus crazy_eights.domain.commands-test    # one namespace
 clojure -M:lint                                              # clj-kondo (must stay clean)
-clojure -M:sim-log                                           # domain simulation with move log
-clojure -M:app-sim-log                                       # app-layer simulation with log
 clojure -M:run-web                                           # multiplayer game web UI on http://localhost:8080
 ./scripts/verify-web                                         # live HTTP + Playwright web smoke
 ./scripts/verify-web --no-browser                            # live HTTP smoke without browser
@@ -29,8 +27,10 @@ Three layers, dependency direction strictly `web → app → domain`:
   `resources/domain/scenarios/`, `generators` feeds property tests.
 - `src/crazy_eights/app/` — in-memory shell: `core` (game registry in an atom, seat
   mapping, action submission, app-event emission), `pubsub` (plain-map subscribers),
-  `logging` (app-event subscriber, never inside domain/core), `simulation` (runtime
-  simulation service with injected delay-fn). No HTTP/JSON here.
+  `logging` (app-event subscriber, never inside domain/core). No HTTP/JSON or
+  simulation logic here.
+- `src/crazy_eights/simulation/` — app-layer clients that create normal games and
+  submit simulated player actions through `app.core`.
 - `src/crazy_eights/web/` — transport only, no game logic. Request pipeline:
   request → `commands` (parse params into a web command) → app use case → domain
   events/error → `view_model/game-view` (per-viewer, never exposes other hands) →

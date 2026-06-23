@@ -87,3 +87,26 @@
 (deftest unobserve-reports-unknown-observer
   (is (= {:error :unknown-observer}
          (op/unobserve! "missing"))))
+
+(deftest start-sim-creates-visible-game
+  (let [result (op/start-sim 3 0)]
+    (is (string? (:game-id result)))
+    (is (string? (:observer-path result)))
+    (is (= 3 (:player-count result)))
+    (is (= 0 (:delay-seconds result)))
+    (is (re-find #"^sim-" (:simulation-name result)))
+    (is (= (:observer-path result)
+           (->> (op/games)
+                vals
+                (apply concat)
+                (filter #(= (:game-id result) (:game-id %)))
+                first
+                :observer-path)))))
+
+(deftest start-sim-validates-arguments
+  (is (= {:error :invalid-player-count}
+         (op/start-sim 1 0)))
+  (is (= {:error :invalid-delay-seconds}
+         (op/start-sim 2 -0.1)))
+  (is (= {:error :invalid-delay-seconds}
+         (op/start-sim 2 "slow"))))

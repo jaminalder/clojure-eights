@@ -24,7 +24,7 @@ The current implementation includes:
 - event application
 - invariant checks
 - executable EDN scenarios
-- property, unit, app, web, and simulation tests
+- property, unit, app, simulation-client, and web tests
 - a multiplayer web UI: host a game, share the link, friends join by name,
   the host deals, and the whole game is played in the browser (eights declare
   a suit via a picker; draws reshuffle automatically when needed)
@@ -38,9 +38,11 @@ The code is the primary specification.
 
 - domain behavior lives in `src/crazy_eights/domain/`
 - application lifecycle lives in `src/crazy_eights/app/`
+- simulation clients live in `src/crazy_eights/simulation/`
 - web transport (routes, game views, SSE) lives in `src/crazy_eights/web/`
 - tests under `test/crazy_eights/domain/` are the executable spec
 - app tests under `test/crazy_eights/app/` exercise the in-memory shell around the domain
+- simulation tests under `test/crazy_eights/simulation/` exercise app-layer simulations
 - web tests under `test/crazy_eights/web/` cover routes and SSE wiring
 - scenario EDN under `resources/domain/scenarios/` is kept only because it is executed by tests
 
@@ -63,7 +65,8 @@ Prefer simple functions and data transformations first. Let larger workflows eme
 - no Docker yet
 - no runtime state container in the domain
 
-In-memory application and simulation state lives outside the domain layer.
+In-memory application state lives outside the domain layer. Simulation is a
+client of the application layer, not part of the domain or app layer.
 
 ## Domain Purity
 
@@ -91,28 +94,10 @@ Run all tests:
 clojure -M:test
 ```
 
-Run the shuffled-game simulation test with move logging:
+Run simulation-client tests:
 
 ```bash
-clojure -M:sim-log
-```
-
-Run just the simulation test quietly:
-
-```bash
-clojure -M:test --focus crazy_eights.domain.simulation-test
-```
-
-Run the application-layer simulation test:
-
-```bash
-clojure -M:test --focus crazy_eights.app.simulation-test
-```
-
-Run the application-layer simulation test with logging to stdout:
-
-```bash
-clojure -M:app-sim-log
+clojure -M:test --focus crazy_eights.simulation.app-test
 ```
 
 Run the web server:
@@ -154,6 +139,7 @@ Example operator forms:
 (op/games)
 (op/game "game-0")
 (op/observe! "game-0")
+(op/start-sim 3 0.3)
 (op/observers)
 (op/unobserve-all!)
 ```
