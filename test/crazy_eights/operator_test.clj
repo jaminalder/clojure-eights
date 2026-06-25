@@ -3,7 +3,8 @@
             [crazy_eights.app.core :as app]
             [crazy_eights.domain.model :as model]
             [crazy_eights.operator :as op]
-            [crazy_eights.runtime :as runtime]))
+            [crazy_eights.runtime :as runtime]
+            [crazy_eights.simulation.app :as simulation]))
 
 (defn clean-runtime [test-fn]
   (op/unobserve-all!)
@@ -96,12 +97,36 @@
     (is (= 0 (:delay-seconds result)))
     (is (re-find #"^sim-" (:simulation-name result)))
     (is (= (:observer-path result)
-           (->> (op/games)
-                vals
-                (apply concat)
-                (filter #(= (:game-id result) (:game-id %)))
-                first
-                :observer-path)))))
+            (->> (op/games)
+                 vals
+                 (apply concat)
+                 (filter #(= (:game-id result) (:game-id %)))
+                 first
+                 :observer-path)))))
+
+(deftest start-sim-delegates-background-lifecycle-to-simulation
+  (let [calls (atom [])]
+    (with-redefs [simulation/start-background!
+                  (fn [store opts]
+                    (swap! calls conj {:store store :opts opts})
+                    {:game-id "game-42"
+                     :observer-id "observer-42"
+                     :player-count (:player-count opts)
+                     :simulation-name "sim-test"
+                     :delay-seconds (:delay-seconds opts)
+                     :future (future {:status :finished})})]
+      (let [result (op/start-sim 3 0.2)]
+        (is (= [{:store runtime/store
+                 :opts {:player-count 3
+                        :delay-seconds 0.2}}]
+               @calls))
+        (is (= {:game-id "game-42"
+                :observer-id "observer-42"
+                :observer-path "/games/game-42/observer/observer-42"
+                :player-count 3
+                :simulation-name "sim-test"
+                :delay-seconds 0.2}
+               (dissoc result :future)))))))
 
 (deftest start-sim-validates-arguments
   (is (= {:error :invalid-player-count}

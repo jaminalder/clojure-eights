@@ -29,6 +29,8 @@
 - Preserve the domain/application/web separation: web translates requests, app orchestrates commands, domain enforces rules.
 - Do not place domain rules directly in HTTP handlers or Hiccup views.
 - Scenario EDN is kept only because tests execute it.
+- Operator functions are REPL adapters. They should call one named app or simulation use case, not assemble multi-step lifecycles themselves.
+- Simulation code is an app-layer client language. Name concepts such as strategy, setup, step, run, outcome, experiment, and job; keep strategies as pure functions over plain data until concrete repetition proves a stronger abstraction.
 
 ## Behavior Changes
 

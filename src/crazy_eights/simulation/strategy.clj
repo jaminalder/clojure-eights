@@ -19,3 +19,5 @@
               (model/reshuffleable? state))
         {:type :draw-card}
         {:type :pass-turn}))))
+
+(def first-playable choose-action)

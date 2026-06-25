@@ -1,8 +1,7 @@
 (ns crazy_eights.simulation.app
   (:require [crazy_eights.app.core :as app]
             [crazy_eights.domain.model :as model]
-            [crazy_eights.simulation.strategy :as strategy]
-            [crazy_eights.web.paths :as paths]))
+            [crazy_eights.simulation.strategy :as strategy]))
 
 (def default-step-budget 500)
 
@@ -26,19 +25,21 @@
 (defn- game-summary [game simulation-name player-count]
   {:game-id (:game-id game)
    :observer-id (:observer-id game)
-   :observer-path (paths/observer (:game-id game) (:observer-id game))
    :player-count player-count
-   :simulation-name simulation-name})
+   :simulation-name simulation-name
+   :players (->> (:players game)
+                 vals
+                 (sort-by :seat)
+                 vec)})
 
-(defn start-game!
-  ([store player-count] (start-game! store player-count {}))
-  ([store player-count {:keys [simulation-name]}]
-   (let [simulation-name (or simulation-name (random-simulation-name))
-         {:keys [game-id]} (app/create-game! store)
-         players (join-players! store game-id simulation-name player-count)
-         host-id (:player-id (first players))]
-     (app/start-game! store game-id host-id {:deck (app/valid-start-deck player-count)})
-     (game-summary (app/get-game store game-id) simulation-name player-count))))
+(defn start!
+  [store {:keys [player-count simulation-name]}]
+  (let [simulation-name (or simulation-name (random-simulation-name))
+        {:keys [game-id]} (app/create-game! store)
+        players (join-players! store game-id simulation-name player-count)
+        host-id (:player-id (first players))]
+    (app/start-game! store game-id host-id {:deck (app/valid-start-deck player-count)})
+    (game-summary (app/get-game store game-id) simulation-name player-count)))
 
 (defn- current-player-id [game]
   (let [seat (get-in game [:state :current-player])]
@@ -56,11 +57,18 @@
 (defn- finished? [game]
   (model/game-over? (:state game)))
 
+(defn- done-status [game steps-left]
+  (cond
+    (finished? game) (get-in game [:state :status])
+    (zero? steps-left) :step-budget-exhausted))
+
 (defn run-to-completion!
   ([store simulation] (run-to-completion! store simulation {}))
   ([store {:keys [game-id] :as simulation} {:keys [step-budget]
                                             wait-fn :delay-fn
+                                            choose-action :strategy
                                             :or {wait-fn (fn [] nil)
+                                                 choose-action strategy/first-playable
                                                  step-budget default-step-budget}}]
    (loop [steps-left step-budget]
      (let [game (app/get-game store game-id)]
@@ -70,12 +78,26 @@
 
          (or (finished? game) (zero? steps-left))
          (assoc simulation
-                :status (get-in game [:state :status])
+                :status (done-status game steps-left)
                 :steps-left steps-left)
 
          :else
          (let [player-id (current-player-id game)
-               action (strategy/choose-action (:state game))]
+               action (choose-action (:state game))]
            (wait-fn)
            (submit-action! store game-id player-id action)
            (recur (dec steps-left))))))))
+
+(defn start-background!
+  [store {:keys [player-count delay-seconds step-budget strategy simulation-name]
+          supplied-delay-fn :delay-fn
+          :or {delay-seconds 0}}]
+  (let [started (start! store {:player-count player-count
+                               :simulation-name simulation-name})
+        wait-fn (or supplied-delay-fn (delay-fn delay-seconds))
+        run-options (cond-> {:delay-fn wait-fn}
+                      step-budget (assoc :step-budget step-budget)
+                      strategy (assoc :strategy strategy))
+        result (assoc started :delay-seconds delay-seconds)
+        running (future (run-to-completion! store started run-options))]
+    (assoc result :future running)))

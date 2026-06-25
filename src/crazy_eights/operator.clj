@@ -82,6 +82,17 @@
   (and (number? delay-seconds)
        (not (neg? delay-seconds))))
 
+(defn- simulation-summary [{:keys [game-id observer-id player-count simulation-name
+                                   delay-seconds]
+                            running :future}]
+  {:game-id game-id
+   :observer-id observer-id
+   :observer-path (paths/observer game-id observer-id)
+   :player-count player-count
+   :simulation-name simulation-name
+   :delay-seconds delay-seconds
+   :future running})
+
 (defn start-sim [player-count delay-seconds]
   (cond
     (not (valid-simulation-player-count? player-count))
@@ -91,8 +102,6 @@
     {:error :invalid-delay-seconds}
 
     :else
-    (let [started (simulation/start-game! runtime/store player-count)
-          wait-fn (simulation/delay-fn delay-seconds)]
-      (future
-        (simulation/run-to-completion! runtime/store started {:delay-fn wait-fn}))
-      (assoc started :delay-seconds delay-seconds))))
+    (simulation-summary
+     (simulation/start-background! runtime/store {:player-count player-count
+                                                  :delay-seconds delay-seconds}))))

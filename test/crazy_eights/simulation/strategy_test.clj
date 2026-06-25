@@ -16,11 +16,16 @@
 
 (deftest choose-action-plays-first-playable-card
   (let [state (state-with-hand [(model/card :three :clubs)
-                                (model/card :nine :hearts)
-                                (model/card :eight :clubs)])]
+                                 (model/card :nine :hearts)
+                                 (model/card :eight :clubs)])]
     (is (= {:type :play-card
             :card (model/card :nine :hearts)}
            (strategy/choose-action state)))))
+
+(deftest first-playable-is-the-default-strategy-function
+  (let [state (state-with-hand [(model/card :nine :hearts)])]
+    (is (= (strategy/choose-action state)
+           (strategy/first-playable state)))))
 
 (deftest choose-action-declares-spades-for-eights
   (let [state (state-with-hand [(model/card :eight :clubs)])]
