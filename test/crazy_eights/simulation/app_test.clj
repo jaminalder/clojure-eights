@@ -1,6 +1,7 @@
 (ns crazy_eights.simulation.app-test
   (:require [clojure.test :refer [deftest is]]
             [crazy_eights.app.core :as app]
+            [crazy_eights.domain.model :as model]
             [crazy_eights.simulation.app :as simulation]
             [crazy_eights.simulation.strategy :as strategy]))
 
@@ -43,13 +44,57 @@
         started (simulation/start! store {:player-count 2
                                           :simulation-name "sim-test"})
         calls (atom 0)
-        strategy (fn [state]
+        strategy (fn [obs]
                    (swap! calls inc)
-                   (strategy/choose-action state))]
+                   ((:choose strategy/first-playable) obs))]
     (simulation/run-to-completion! store started {:delay-fn (fn [] nil)
                                                  :step-budget 1
                                                  :strategy strategy})
     (is (= 1 @calls))))
+
+(deftest run-to-completion-uses-strategy-for-current-seat
+  (let [store (app/create-store)
+        started (simulation/start! store {:player-count 2
+                                          :simulation-name "sim-test"})
+        deterministic-state {:players [{:hand [(model/card :nine :hearts)
+                                               (model/card :three :clubs)]}
+                                       {:hand [(model/card :five :hearts)
+                                               (model/card :queen :clubs)]}]
+                             :draw-pile [(model/card :king :spades)]
+                             :discard-pile [(model/card :nine :diamonds)]
+                             :active-suit :diamonds
+                             :current-player 0
+                             :status :in-progress
+                             :winner nil
+                             :passes-in-row 0}
+        calls (atom [])
+        p0 {:id :p0
+            :choose (fn [obs]
+                      (swap! calls conj [:p0 (:player obs)])
+                      ((:choose strategy/first-playable) obs))}
+        p1 {:id :p1
+            :choose (fn [obs]
+                      (swap! calls conj [:p1 (:player obs)])
+                      ((:choose strategy/first-playable) obs))}
+        _ (swap! store assoc-in [:games (:game-id started) :state] deterministic-state)
+        result (simulation/run-to-completion! store started {:delay-fn (fn [] nil)
+                                                            :step-budget 2
+                                                            :strategies [p0 p1]})]
+    (is (= [:p0 :p1] (:seat-strategies result)))
+    (is (= [[:p0 0] [:p1 1]] @calls))))
+
+(deftest run-to-completion-reports_run_metrics
+  (let [store (app/create-store)
+        started (simulation/start! store {:player-count 2
+                                          :simulation-name "sim-test"})
+        result (simulation/run-to-completion! store started {:delay-fn (fn [] nil)})]
+    (is (pos? (:steps result)))
+    (is (nat-int? (:draws result)))
+    (is (nat-int? (:plays result)))
+    (is (nat-int? (:passes result)))
+    (is (= :finished (:status result)))
+    (is (contains? #{:first-playable nil} (:winner-strategy result)))
+    (is (= [:first-playable :first-playable] (:seat-strategies result)))))
 
 (deftest start-background-launches-a-running-simulation
   (let [store (app/create-store)

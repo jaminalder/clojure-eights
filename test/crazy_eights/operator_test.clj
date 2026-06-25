@@ -4,7 +4,9 @@
             [crazy_eights.domain.model :as model]
             [crazy_eights.operator :as op]
             [crazy_eights.runtime :as runtime]
-            [crazy_eights.simulation.app :as simulation]))
+            [crazy_eights.simulation.app :as simulation]
+            [crazy_eights.simulation.experiment :as experiment]
+            [crazy_eights.simulation.strategy :as strategy]))
 
 (defn clean-runtime [test-fn]
   (op/unobserve-all!)
@@ -130,8 +132,19 @@
 
 (deftest start-sim-validates-arguments
   (is (= {:error :invalid-player-count}
-         (op/start-sim 1 0)))
+          (op/start-sim 1 0)))
   (is (= {:error :invalid-delay-seconds}
-         (op/start-sim 2 -0.1)))
+          (op/start-sim 2 -0.1)))
   (is (= {:error :invalid-delay-seconds}
-         (op/start-sim 2 "slow"))))
+          (op/start-sim 2 "slow"))))
+
+(deftest compare-strategies-delegates-to-experiment-runner
+  (let [calls (atom [])]
+    (with-redefs [experiment/run (fn [opts]
+                                   (swap! calls conj opts)
+                                   {:games (:games opts)})]
+      (is (= {:games 1000}
+             (op/compare-strategies 1000 [strategy/careful strategy/first-playable])))
+      (is (= [{:games 1000
+               :strategies [strategy/careful strategy/first-playable]}]
+             @calls)))))

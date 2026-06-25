@@ -4,6 +4,7 @@
             [crazy_eights.domain.model :as model]
             [crazy_eights.runtime :as runtime]
             [crazy_eights.simulation.app :as simulation]
+            [crazy_eights.simulation.experiment :as experiment]
             [crazy_eights.web.paths :as paths]))
 
 (defonce observer-state (atom {}))
@@ -105,3 +106,7 @@
     (simulation-summary
      (simulation/start-background! runtime/store {:player-count player-count
                                                   :delay-seconds delay-seconds}))))
+
+(defn compare-strategies [game-count strategies]
+  (experiment/run {:games game-count
+                   :strategies strategies}))

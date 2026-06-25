@@ -54,6 +54,50 @@
     :draw-card (app/draw-card! store game-id player-id)
     :pass-turn (app/pass-turn! store game-id player-id)))
 
+(defn- strategy-id [strategy]
+  (if (map? strategy)
+    (:id strategy)
+    :anonymous))
+
+(defn- choose-fn [strategy]
+  (if (map? strategy)
+    (:choose strategy)
+    strategy))
+
+(defn- seat-strategies [player-count {:keys [strategy strategies]}]
+  (let [choices (or (seq strategies)
+                    (when strategy [strategy])
+                    [strategy/first-playable])]
+    (mapv #(or % strategy/first-playable)
+          (take player-count (cycle choices)))))
+
+(defn- choose-action [strategies state]
+  (let [seat (:current-player state)
+        choose (choose-fn (nth strategies seat))]
+    (choose (strategy/observation state))))
+
+(defn- record-action [metrics action]
+  (-> metrics
+      (update :steps inc)
+      (update (case (:type action)
+                :play-card :plays
+                :draw-card :draws
+                :pass-turn :passes)
+              inc)))
+
+(defn- run-result [simulation game strategies metrics steps-left status]
+  (let [winner (get-in game [:state :winner])]
+    (cond-> (assoc simulation
+                   :status status
+                   :steps-left steps-left
+                   :steps (:steps metrics)
+                   :draws (:draws metrics)
+                   :plays (:plays metrics)
+                   :passes (:passes metrics)
+                   :winner winner
+                   :seat-strategies (mapv strategy-id strategies))
+      (some? winner) (assoc :winner-strategy (strategy-id (nth strategies winner))))))
+
 (defn- finished? [game]
   (model/game-over? (:state game)))
 
@@ -64,32 +108,31 @@
 
 (defn run-to-completion!
   ([store simulation] (run-to-completion! store simulation {}))
-  ([store {:keys [game-id] :as simulation} {:keys [step-budget]
-                                            wait-fn :delay-fn
-                                            choose-action :strategy
-                                            :or {wait-fn (fn [] nil)
-                                                 choose-action strategy/first-playable
-                                                 step-budget default-step-budget}}]
-   (loop [steps-left step-budget]
-     (let [game (app/get-game store game-id)]
-       (cond
-         (or (nil? game) (nil? (:state game)))
-         (assoc simulation :status :missing-game :steps-left steps-left)
+  ([store {:keys [game-id player-count] :as simulation} {:keys [step-budget]
+                                                         wait-fn :delay-fn
+                                                         :as opts
+                                                         :or {wait-fn (fn [] nil)
+                                                              step-budget default-step-budget}}]
+   (let [strategies (seat-strategies player-count opts)]
+     (loop [steps-left step-budget
+            metrics {:steps 0 :draws 0 :plays 0 :passes 0}]
+      (let [game (app/get-game store game-id)]
+        (cond
+          (or (nil? game) (nil? (:state game)))
+          (run-result simulation game strategies metrics steps-left :missing-game)
 
-         (or (finished? game) (zero? steps-left))
-         (assoc simulation
-                :status (done-status game steps-left)
-                :steps-left steps-left)
+          (or (finished? game) (zero? steps-left))
+          (run-result simulation game strategies metrics steps-left (done-status game steps-left))
 
-         :else
-         (let [player-id (current-player-id game)
-               action (choose-action (:state game))]
-           (wait-fn)
-           (submit-action! store game-id player-id action)
-           (recur (dec steps-left))))))))
+          :else
+          (let [player-id (current-player-id game)
+                action (choose-action strategies (:state game))]
+            (wait-fn)
+            (submit-action! store game-id player-id action)
+            (recur (dec steps-left) (record-action metrics action)))))))))
 
 (defn start-background!
-  [store {:keys [player-count delay-seconds step-budget strategy simulation-name]
+  [store {:keys [player-count delay-seconds step-budget strategy strategies simulation-name]
           supplied-delay-fn :delay-fn
           :or {delay-seconds 0}}]
   (let [started (start! store {:player-count player-count
@@ -97,7 +140,8 @@
         wait-fn (or supplied-delay-fn (delay-fn delay-seconds))
         run-options (cond-> {:delay-fn wait-fn}
                       step-budget (assoc :step-budget step-budget)
-                      strategy (assoc :strategy strategy))
+                      strategy (assoc :strategy strategy)
+                      strategies (assoc :strategies strategies))
         result (assoc started :delay-seconds delay-seconds)
         running (future (run-to-completion! store started run-options))]
     (assoc result :future running)))
