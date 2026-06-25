@@ -25,3 +25,14 @@
     (is (number? (:port result)))
     (is (:web status))
     (is (nil? (:nrepl status)))))
+
+(deftest operator-repl-starts-nrepl-without-web
+  (let [port-file (str (java.io.File/createTempFile "ce-nrepl" ".port"))
+        result (runtime/start-operator-repl! {:nrepl {:port 0
+                                                      :port-file port-file}})
+        status (runtime/status)]
+    (is (= :started (get-in result [:nrepl :status])))
+    (is (number? (get-in result [:nrepl :port])))
+    (is (= port-file (get-in result [:nrepl :port-file])))
+    (is (nil? (:web status)))
+    (is (:nrepl status))))

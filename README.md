@@ -117,8 +117,18 @@ Normal web startup does not start a REPL:
 clojure -M:run-web
 ```
 
-For trusted operator access, start the web server and a local-only nREPL in the
-same JVM:
+For simulations, experiments, and app-context REPL work without the web server,
+start only the local nREPL:
+
+```bash
+clojure -M:operator-repl
+```
+
+This loads the app classpath and `crazy_eights.runtime/store`, starts nREPL
+bound to `127.0.0.1`, and writes `.nrepl-port`. It does not start HTTP.
+
+For trusted operator access to a running web app, start the web server and a
+local-only nREPL in the same JVM:
 
 ```bash
 clojure -M:operator-web
@@ -135,11 +145,13 @@ Example operator forms:
 
 ```clojure
 (require '[crazy_eights.operator :as op])
+(require '[crazy_eights.simulation.strategy :as strategy])
 
 (op/games)
 (op/game "game-0")
 (op/observe! "game-0")
 (op/start-sim 3 0.3)
+(op/compare-strategies 1000 [strategy/careful strategy/first-playable])
 (op/observers)
 (op/unobserve-all!)
 ```

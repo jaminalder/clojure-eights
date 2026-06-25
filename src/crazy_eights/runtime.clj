@@ -94,13 +94,29 @@
    {:web (start-web! web)
     :nrepl (start-nrepl! nrepl)}))
 
+(defn start-operator-repl!
+  ([] (start-operator-repl! {}))
+  ([{:keys [nrepl]}]
+   {:nrepl (start-nrepl! nrepl)}))
+
 (defn stop! []
   {:nrepl (stop-nrepl!)
    :web (stop-web!)})
 
-(defn -main [& _args]
+(defn repl-main []
+  (let [{:keys [nrepl]} (start-operator-repl!)]
+    (println "nREPL started on" (:bind nrepl) (:port nrepl))
+    (println "nREPL port file:" (:port-file nrepl)))
+  @(promise))
+
+(defn operator-web-main []
   (let [{:keys [web nrepl]} (start-operator!)]
     (println "web server started on" (str "http://localhost:" (:port web)))
     (println "nREPL started on" (:bind nrepl) (:port nrepl))
     (println "nREPL port file:" (:port-file nrepl)))
   @(promise))
+
+(defn -main [& args]
+  (case (first args)
+    "repl" (repl-main)
+    (operator-web-main)))
