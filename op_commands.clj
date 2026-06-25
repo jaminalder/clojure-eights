@@ -1,6 +1,8 @@
 (require '[crazy_eights.operator :as op])
 
-(op/start-sim 3 2)
+(op/start-sim 3 0)
+
+(op/games)
 
 (count (:in-progress (op/games)))
 (count (:finished (op/games)))
