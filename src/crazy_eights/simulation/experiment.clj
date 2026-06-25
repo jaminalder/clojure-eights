@@ -34,30 +34,40 @@
     (/ (reduce + xs) (double (count xs)))
     0))
 
+(defn- games-with-winners [results]
+  (count (filter :winner-strategy results)))
+
+(defn- win-rate [win-count decisive-game-count]
+  (if (pos? decisive-game-count)
+    (/ win-count (double decisive-game-count))
+    0.0))
+
 (defn- occupied? [strategy-id result]
   (some #(= strategy-id %) (:seat-strategies result)))
 
-(defn- strategy-summary [results strategy-id]
+(defn- strategy-summary [results decisive-games strategy-id]
   (let [strategy-results (filter #(occupied? strategy-id %) results)
+        strategy-wins (wins strategy-id results)
         seats (seats-played strategy-id results)]
     {:seats-played seats
-     :wins (wins strategy-id results)
-     :win-rate (if (pos? seats) (/ (wins strategy-id results) seats) 0)
+     :wins strategy-wins
+     :win-rate (win-rate strategy-wins decisive-games)
      :avg-steps (average (map :steps strategy-results))
      :avg-draws (average (map :draws strategy-results))}))
 
 (defn summarize [{:keys [player-count]} results]
-  {:games (count results)
-   :player-count player-count
-   :finished (count (filter #(= :finished (:status %)) results))
-   :blocked (count (filter #(and (= :finished (:status %))
-                                  (nil? (:winner %)))
-                            results))
-   :budget-exhausted (count (filter #(= :step-budget-exhausted (:status %)) results))
-   :strategies (into {}
-                     (map (fn [strategy-id]
-                            [strategy-id (strategy-summary results strategy-id)]))
-                     (strategy-ids results))})
+  (let [decisive-games (games-with-winners results)]
+    {:games (count results)
+     :player-count player-count
+     :finished (count (filter #(= :finished (:status %)) results))
+     :blocked (count (filter #(and (= :finished (:status %))
+                                    (nil? (:winner %)))
+                              results))
+     :budget-exhausted (count (filter #(= :step-budget-exhausted (:status %)) results))
+     :strategies (into {}
+                       (map (fn [strategy-id]
+                              [strategy-id (strategy-summary results decisive-games strategy-id)]))
+                       (strategy-ids results))}))
 
 (defn run-game [{:keys [player-count strategies step-budget]} run-index]
   (let [store (app/create-store)
