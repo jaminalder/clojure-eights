@@ -60,6 +60,7 @@ location            = "fsn1"
 image               = "ubuntu-24.04"
 ssh_public_key_path = "~/.ssh/id_ed25519.pub"
 ssh_allowed_ips     = ["YOUR_PUBLIC_IP/32"]
+ci_ssh_allowed_ips  = ["0.0.0.0/0"]
 app_image           = "ghcr.io/YOUR_GITHUB_OWNER/YOUR_REPO:latest"
 ```
 
@@ -76,6 +77,12 @@ HCLOUD_TOKEN="$TF_VAR_hcloud_token" hcloud server-type list
 ```
 
 Use a specific `/32` for `ssh_allowed_ips` when possible. The example `203.0.113.10/32` is documentation-only and will not work for your real SSH access.
+
+GitHub-hosted runners do not have one stable source IP. If the Deploy workflow
+uses SSH from GitHub Actions, `ci_ssh_allowed_ips = ["0.0.0.0/0"]` is the simple
+first setup. SSH still requires the private deploy key, and root password login
+is not enabled by this Terraform config. A later hardening step can replace this
+with a self-hosted runner, WireGuard/Tailscale, or a pull-based deploy agent.
 
 Set the Hetzner token in your shell:
 

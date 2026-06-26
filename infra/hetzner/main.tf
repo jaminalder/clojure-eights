@@ -16,6 +16,7 @@ provider "hcloud" {
 locals {
   deploy_dir     = "/opt/crazy-eights"
   ssh_public_key = file(pathexpand(var.ssh_public_key_path))
+  ssh_source_ips = distinct(concat(var.ssh_allowed_ips, var.ci_ssh_allowed_ips))
 }
 
 resource "hcloud_ssh_key" "default" {
@@ -30,7 +31,7 @@ resource "hcloud_firewall" "web" {
     direction  = "in"
     protocol   = "tcp"
     port       = "22"
-    source_ips = var.ssh_allowed_ips
+    source_ips = local.ssh_source_ips
   }
 
   rule {

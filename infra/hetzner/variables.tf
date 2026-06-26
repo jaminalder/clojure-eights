@@ -40,6 +40,12 @@ variable "ssh_allowed_ips" {
   default     = ["0.0.0.0/0"]
 }
 
+variable "ci_ssh_allowed_ips" {
+  description = "CIDR ranges allowed to SSH from CI deploy runners. GitHub-hosted runners need broad access unless you use a stable egress runner."
+  type        = list(string)
+  default     = []
+}
+
 variable "app_image" {
   description = "Initial app image written into /opt/crazy-eights/.env by cloud-init."
   type        = string
