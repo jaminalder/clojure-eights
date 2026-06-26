@@ -1,5 +1,6 @@
 (ns crazy_eights.web.server
-  (:require [crazy_eights.runtime :as runtime]))
+  (:require [crazy_eights.runtime :as runtime])
+  (:gen-class))
 
 (defn start!
   ([] (start! {}))

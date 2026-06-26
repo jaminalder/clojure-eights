@@ -25,6 +25,9 @@
                              "--connect"
                              "--host"
                              "127.0.0.1"]}
-  :lint {:extra-deps {clj-kondo/clj-kondo {:mvn/version "2024.08.29"}}
-         :main-opts ["-m" "clj-kondo.main" "--lint" "src" "test"]}
-  :run-web {:main-opts ["-m" "crazy_eights.web.server"]}}}
+   :lint {:extra-deps {clj-kondo/clj-kondo {:mvn/version "2024.08.29"}}
+          :main-opts ["-m" "clj-kondo.main" "--lint" "src" "test"]}
+   :build {:deps {io.github.clojure/tools.build {:git/tag "v0.10.6"
+                                                 :git/sha "52cf7d6"}}
+           :ns-default build}
+   :run-web {:main-opts ["-m" "crazy_eights.web.server"]}}}

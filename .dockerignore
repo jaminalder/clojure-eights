@@ -1,0 +1,11 @@
+.git
+.github
+.clj-kondo/.cache
+.cpcache
+.nrepl-port
+.playwright-cli
+target
+docs
+infra
+deploy/*.env
+*.log
