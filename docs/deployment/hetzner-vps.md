@@ -124,20 +124,28 @@ Then connect as the deploy user:
 ssh deploy@<server-ip>
 ```
 
-## Build And Publish The Image
+## Build Workflow
 
-The image is built by `.github/workflows/container.yml`.
+The image is built by `.github/workflows/build.yml`.
 
-It runs on pushes to `master` and manual dispatch. It tests, lints, builds the
-uberjar, builds the container image, pushes it to GHCR, and deploys the commit
-SHA image to the VPS.
+It runs on every branch push, pull request, and manual dispatch. It tests,
+lints, builds the uberjar, builds the container image, and pushes images to
+GHCR for non-PR events.
 
 It publishes:
 
-- `ghcr.io/<owner>/<repo>:<git-sha>`
-- `ghcr.io/<owner>/<repo>:latest`
+- `ghcr.io/<owner>/<repo>:sha-<commit-sha>` for every pushed commit
+- `ghcr.io/<owner>/<repo>:branch-<branch-name>` for branch pushes
+- `ghcr.io/<owner>/<repo>:latest` for `master`
 
-The CI workflow `.github/workflows/ci.yml` runs tests, lint, and the uberjar build.
+## Deploy Workflow
+
+The Deploy workflow runs automatically after a successful Build workflow on
+`master`. It deploys the `sha-<commit-sha>` image from that build.
+
+The Deploy workflow can also be run manually. Its default image tag is `latest`.
+To deploy a branch build manually, use `branch-<branch-name>`. To deploy an
+exact build, use `sha-<commit-sha>`.
 
 ## First Deploy
 
@@ -146,10 +154,10 @@ The CI workflow `.github/workflows/ci.yml` runs tests, lint, and the uberjar bui
 3. Set `VPS_USER` to `deploy`.
 4. Set `VPS_SSH_PRIVATE_KEY` to the private key matching the public key used by Terraform.
 5. Set `GHCR_READ_TOKEN` if the package is private.
-6. Push to `master`; the Container workflow builds and deploys automatically.
+6. Push to `master`; Build publishes the image and Deploy starts automatically after Build succeeds.
 
-The Container workflow writes `/opt/crazy-eights/.env`, pulls the pushed commit
-image, and runs:
+The Deploy workflow writes `/opt/crazy-eights/.env`, pulls the selected image,
+and runs:
 
 ```bash
 docker compose -f compose.yml --env-file .env up -d
