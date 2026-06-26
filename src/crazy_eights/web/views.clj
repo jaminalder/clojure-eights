@@ -227,13 +227,19 @@
   (some #(and (= declare-code (:code %)) (:declarable? %))
         (:hand vm)))
 
+(defn- waiting-note [{:keys [host? can-start?]}]
+  (cond
+    can-start? "deal when everyone is seated"
+    host? "invite at least one more player"
+    :else "waiting for the host to deal"))
+
 (defn hand-html
   ([vm] (hand-html vm {}))
   ([{:keys [phase viewer-seat game-id] :as vm} {:keys [declare-code]}]
    (html
     (cond
       (and (= :waiting phase) (nil? viewer-seat)) (join-form vm)
-      (contains? #{:waiting :between-games} phase) [:p.spectator-note "waiting for the host to deal"]
+      (contains? #{:waiting :between-games} phase) [:p.spectator-note (waiting-note vm)]
       (nil? viewer-seat) [:p.spectator-note "spectating — you watch, they play"]
       (declarable? vm declare-code) (suit-picker game-id declare-code)
       :else (hand-cards vm)))))

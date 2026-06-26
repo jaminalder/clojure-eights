@@ -9,7 +9,10 @@
   {:game-id "game-0"
    :state nil
    :players {"game-0-player-0" {:seat 0 :name "anna"}
-             "game-0-player-1" {:seat 1 :name "ben"}}})
+              "game-0-player-1" {:seat 1 :name "ben"}}})
+
+(def solo-waiting-game
+  (update waiting-game :players select-keys ["game-0-player-0"]))
 
 (def playing-state
   {:players [{:hand [(model/card :queen :clubs) (model/card :eight :diamonds)]}
@@ -89,6 +92,11 @@
         joined (views/hand-html (vm/game-view waiting-game "game-0-player-1"))]
     (is (str/includes? stranger "action=\"/games/game-0/join\""))
     (is (not (str/includes? joined "join")))))
+
+(deftest waiting-hand-gives-host-next-step
+  (let [html (views/hand-html (vm/game-view solo-waiting-game "game-0-player-0"))]
+    (is (str/includes? html "invite at least one more player"))
+    (is (not (str/includes? html "waiting for the host")))))
 
 (deftest playing-board-shows-piles-and-opponents
   (let [html (views/board-html (host-view))]
