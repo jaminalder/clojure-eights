@@ -373,7 +373,7 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [master]
   workflow_dispatch:
 
 jobs:
@@ -405,7 +405,7 @@ name: Container
 
 on:
   push:
-    branches: [main]
+    branches: [master]
   workflow_dispatch:
 
 permissions:
@@ -521,7 +521,7 @@ terraform -chdir=infra/hetzner output server_ipv4
 
 ## First Deploy
 
-1. Push to `main` or manually run the Container workflow to publish an image.
+1. Push to `master` or manually run the Container workflow to publish an image.
 2. Set `VPS_HOST` to the Terraform output IP.
 3. Manually run the Deploy workflow.
 4. Open `http://<server-ip>/`.

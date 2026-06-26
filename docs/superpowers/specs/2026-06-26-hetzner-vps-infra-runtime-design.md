@@ -177,7 +177,7 @@ The first milestone should not implement these. It should only avoid choices tha
 
 - exact Hetzner server type and region
 - whether the repository is public or private
-- whether the deploy target is `main` only or manual dispatch only
+- whether the deploy target is `master` only or manual dispatch only
 - exact image name under GHCR
 - whether Compose uses host port `80:8080` immediately or `8080:8080` for the first smoke test
 - whether to add a dedicated `/healthz` endpoint before the first deployment

@@ -9,7 +9,7 @@ The setup is intentionally small:
 - Docker Compose runtime
 - GitHub Actions CI and image publishing
 - GHCR container image
-- manual GitHub Actions deploy over SSH
+- automatic GitHub Actions deploy over SSH on pushes to `master`
 - HTTP by public server IP
 
 Domain, Caddy, TLS, persistence, and multi-node runtime are later milestones.
@@ -128,7 +128,11 @@ ssh deploy@<server-ip>
 
 The image is built by `.github/workflows/container.yml`.
 
-It runs on pushes to `main` and manual dispatch. It publishes:
+It runs on pushes to `master` and manual dispatch. It tests, lints, builds the
+uberjar, builds the container image, pushes it to GHCR, and deploys the commit
+SHA image to the VPS.
+
+It publishes:
 
 - `ghcr.io/<owner>/<repo>:<git-sha>`
 - `ghcr.io/<owner>/<repo>:latest`
@@ -137,15 +141,15 @@ The CI workflow `.github/workflows/ci.yml` runs tests, lint, and the uberjar bui
 
 ## First Deploy
 
-1. Push these deployment files to GitHub.
-2. Let the Container workflow publish an image, or run it manually.
-3. Set `VPS_HOST` in GitHub Actions secrets to the Terraform output IP.
-4. Set `VPS_USER` to `deploy`.
-5. Set `VPS_SSH_PRIVATE_KEY` to the private key matching the public key used by Terraform.
-6. Set `GHCR_READ_TOKEN` if the package is private.
-7. Run the Deploy workflow manually.
+1. Push these deployment files to GitHub on `master`.
+2. Set `VPS_HOST` in GitHub Actions secrets to the Terraform output IP.
+3. Set `VPS_USER` to `deploy`.
+4. Set `VPS_SSH_PRIVATE_KEY` to the private key matching the public key used by Terraform.
+5. Set `GHCR_READ_TOKEN` if the package is private.
+6. Push to `master`; the Container workflow builds and deploys automatically.
 
-The Deploy workflow writes `/opt/crazy-eights/.env`, pulls the requested image, and runs:
+The Container workflow writes `/opt/crazy-eights/.env`, pulls the pushed commit
+image, and runs:
 
 ```bash
 docker compose -f compose.yml --env-file .env up -d
@@ -177,7 +181,8 @@ curl --noproxy '*' -i http://<server-ip>/
 
 Use a previous image SHA tag in the Deploy workflow `image_tag` input.
 
-The workflow will rewrite `APP_IMAGE` and restart the app with that tag.
+The manual Deploy workflow will rewrite `APP_IMAGE` and restart the app with
+that tag.
 
 ## Current Limitations
 
